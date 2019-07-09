@@ -1,0 +1,9 @@
+<!-- 登录注册第一个页面 -->
+<view class='body '>
+  <view class='top'>
+    <image mode='aspectFill' src='{{logo}}'></image>
+  </view>
+  <view class='mid'>
+    <button open-type="getUserInfo" bindgetuserinfo="getUserInfo" class="weui-btn" type="primary">微信账号登录</button>
+  </view>
+</view>

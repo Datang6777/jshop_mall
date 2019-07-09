@@ -1,0 +1,2 @@
+window.host = '';
+window.entId = '';

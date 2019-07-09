@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+<?php
+// +----------------------------------------------------------------------
+// | JSHOP [ 小程序商城 ]
+// +----------------------------------------------------------------------
+// | Copyright (c) 2018 http://jihainet.com All rights reserved.
+// +----------------------------------------------------------------------
+// | Author: sin <sin@jihainet.com>
+// +----------------------------------------------------------------------
+
+namespace think;
+
+define('ROOT_PATH',dirname(__FILE__));
+define('DS',DIRECTORY_SEPARATOR);
+define('CRONTAB',TRUE);
+error_reporting(0);              //错误等级
+define('ADDON_PATH', ROOT_PATH .DIRECTORY_SEPARATOR. 'addons'   . DIRECTORY_SEPARATOR);
+
+// 加载基础文件
+require __DIR__ . '/thinkphp/base.php';
+// 执行应用
+Container::get('app', [__DIR__ . '/application/'])->initialize();
+Console::init();

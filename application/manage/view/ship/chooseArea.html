@@ -1,0 +1,53 @@
+<link rel="stylesheet" href="__STATIC_LIB__layuiadmin/layui/layui_ext/dtree/dtree.css">
+<link rel="stylesheet" href="__STATIC_LIB__layuiadmin/layui/layui_ext/dtree/font/dtreefont.css">
+<form action="#" id="selectArea" method="post">
+    <ul id="areaTree" class="dtree" data-id="0"></ul>
+</form>
+<script>
+/*    var checkedArea = [];
+    var defaultAreaList = {php}echo $arealist;{/php};*/
+    var DTree = dtree = '';
+    layui.extend({
+        dtree: '__STATIC_LIB__layuiadmin/layui/layui_ext/dtree/dtree'
+    }).use([ 'form', 'layer', 'dtree'], function() {
+        dtree = layui.dtree;
+
+        DTree = dtree.render({
+            elem: "#areaTree",
+            initLevel: 1,
+            //request:{"ids":value},
+            url: '{:url("ship/getArea")}',
+            async: false,  // 只需将该参数设置为false，即可同步加载
+            checkbar: true,
+            cache: true,
+            checkbarType: "all",
+            response:{message:"msg",statusCode:0},
+            dataStyle: "layuiStyle",
+            dataFormat: "list"
+        });
+
+    });
+
+
+function getAllChecked() {
+    var checked = dtree.getCheckbarNodesParam(DTree);
+    var data = {};
+
+    if(checked.length>0){
+        var html = '已选择地区：';
+        var ids = [];
+        $.each(checked,function (i,obj) {
+            if(obj.parentId<=0){
+                html=html+obj.context+',';
+            }
+            ids.push({'id':obj.nodeId,'pid':obj.parentId,'name':obj.context});
+        });
+        html = html.substring(0,html.length-1)+' <a href="javascript:void(0);" class="selectArea">请选择地区</a>';
+        html = html+"<input type='hidden' name='area_id[{$trId}]' value='"+JSON.stringify(ids)+"'>";
+        data.ids = ids;
+        data.html = html;
+    }
+    return data;
+}
+</script>
+
