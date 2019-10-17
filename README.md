@@ -444,17 +444,6 @@ wwwroot  WEB部署目录（或者子目录）
     }
 ~~~
 #### 安全&缺陷
-如果你发现了一个安全漏洞或缺陷，请发送邮件到 jima@jihainet.com。所有的安全漏洞都将及时得到解决。
+如果你发现了一个安全漏洞或缺陷，请发送邮件到 datang866@163.com。所有的安全漏洞都将及时得到解决。
 
 
-#### License
-
-Jshop小程序商城遵循JPPL（吉海科技Jshop系列付费产品许可）协议。
-
-本项目包含的第三方源码和二进制文件之版权信息另行标注。
-
-版权所有Copyright © 2019 by 吉海科技 (https://www.jihainet.com)
-
-All rights reserved。
-
-吉海科技Jshop系列付费产品许可协议详情请参阅 [LICENSE.txt](LICENSE.txt)
