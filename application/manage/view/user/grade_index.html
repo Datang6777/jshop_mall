@@ -1,22 +1,3 @@
-<style>
-    @media screen and (max-width: 500px) {
-
-        .layui-layer.layui-layer-page {
-            width: 100% !important;
-            overflow:hidden!important;
-            left: 0 !important;
-        }
-
-        .layui-layer-title {
-            width: 100% !important;
-            box-sizing: border-box;
-        }
-
-        .layui-layer-content {
-            width: 100% !important;
-        }
-    }
-</style>
 <form class="layui-form seller-form" action="">
     <div class="layui-form-item">
         <div class="layui-inline">
@@ -34,18 +15,18 @@
     layui.use(['form', 'layedit', 'laydate', 'table'], function () {
         var userTables = layui.table.render({
             elem: '#userTable',
-            height: 'full-220',
+            height: 'full-99',
             cellMinWidth: '80',
             page: 'true',
             limit: '20',
             url: "{:url('user/grade')}?_ajax=1",
             id: 'userTable',
             cols: [[
-                { field: 'id', width: 100, title: '编号' },
-                { field: 'name', width: 100, title: '等级名称' },
+                { field: 'id', width: 90, title: 'ID', align: 'center' },
+                { field: 'name', width: 150, title: '等级名称', align: 'center' },
                 { field: 'is_def', title: '是否默认' },
                 {
-                    field: 'operating', title: '操作', width: 250, align: 'center', templet: function (data) {
+                    field: 'operating', title: '操作', width: 140, align: 'center', templet: function (data) {
                         var html = '';
                         html += '<a  class="layui-btn layui-btn-xs option-edit" data-id="' + data.id + '">编辑</a>';
                         html += '<a  class="layui-btn layui-btn-xs option-del layui-btn-danger" data-id="' + data.id + '">删除</a>';
@@ -57,30 +38,33 @@
         //监听form提交  (add)
         layui.form.on('submit(role-add)', function (data) {
             JsGet('{:url("user/gradeAdd")}', function (tpl) {
-                layer.open({
-                    type: 1,
-                    area: ['600px', '400px'],
-                    data: '',
-                    title: '添加用户等级',
-                    content: tpl,
-                    btn: ['保存', '关闭'],
-                    yes: function (index, layero) {
-                        var thedata = $('#edit_form').serialize();
-                        JsPost('{:url("user/gradeAdd")}', thedata, function (re) {
-                            if (re.status) {
-                                layer.msg('保存成功');
-                                layer.close(index);
-                                userTables.reload();
-                            } else {
-                                layer.msg(re.msg);
-                            }
-                        });
-                    }
-                });
+                if(tpl.status){
+                    layer.open({
+                        type: 1,
+                        area: setpage(600,400),
+                        data: '',
+                        title: '添加用户等级',
+                        content: tpl.data,
+                        btn: ['保存', '关闭'],
+                        yes: function (index, layero) {
+                            var thedata = $('#edit_form').serialize();
+                            JsPost('{:url("user/gradeAdd")}', thedata, function (re) {
+                                if (re.status) {
+                                    layer.msg('保存成功');
+                                    layer.close(index);
+                                    userTables.reload();
+                                } else {
+                                    layer.msg(re.msg);
+                                }
+                            });
+                        }
+                    });
+                }else{
+                    layer.msg(tpl.msg);
+                }
             });
             return false;
         });
-
         //角色删除
         $(document).on('click', '.option-del', function () {
             var id = $(this).attr('data-id');
@@ -95,37 +79,39 @@
                     } else {
                         layer.msg(res.msg);
                     }
-
                 });
             }, function () {
                 layer.close(1);
             });
         });
-
         //编辑
         $(document).on('click', '.option-edit', function () {
             var id = $(this).attr('data-id');
             JsGet('{:url("user/gradeAdd")}?id=' + id, function (tpl) {
-                layer.open({
-                    type: 1,
-                    area: ['600px', '400px'],
-                    data: '',
-                    title: '编辑会员等级',
-                    content: tpl,
-                    btn: ['保存', '关闭'],
-                    yes: function (index, layero) {
-                        var thedata = $('#edit_form').serialize();
-                        JsPost('{:url("user/gradeAdd")}', thedata, function (re) {
-                            if (re.status) {
-                                layer.msg('保存成功');
-                                layer.close(index);
-                                userTables.reload();
-                            } else {
-                                layer.msg(re.msg);
-                            }
-                        });
-                    }
-                });
+                if(tpl.status){
+                    layer.open({
+                        type: 1,
+                        area: setpage(600,400),
+                        data: '',
+                        title: '编辑会员等级',
+                        content: tpl.data,
+                        btn: ['保存', '关闭'],
+                        yes: function (index, layero) {
+                            var thedata = $('#edit_form').serialize();
+                            JsPost('{:url("user/gradeAdd")}', thedata, function (re) {
+                                if (re.status) {
+                                    layer.msg('保存成功');
+                                    layer.close(index);
+                                    userTables.reload();
+                                } else {
+                                    layer.msg(re.msg);
+                                }
+                            });
+                        }
+                    });
+                }else{
+                    layer.msg(tpl.msg);
+                }
             });
         });
     });

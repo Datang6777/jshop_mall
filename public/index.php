@@ -1,12 +1,10 @@
 <?php
 // +----------------------------------------------------------------------
-// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+// | JSHOP [ 小程序商城 ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006-2016 http://thinkphp.cn All rights reserved.
+// | Copyright (c) 2019 https://www.jihainet.com All rights reserved.
 // +----------------------------------------------------------------------
-// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
-// +----------------------------------------------------------------------
-// | Author: liu21st <liu21st@gmail.com>
+// | Author: sin <sin@jihainet.com>
 // +----------------------------------------------------------------------
 
 // [ 应用入口文件 ]
@@ -16,12 +14,11 @@ define('DS',DIRECTORY_SEPARATOR);
 // 插件目录
 define('ADDON_PATH', ROOT_PATH . 'addons'   . DIRECTORY_SEPARATOR);
 
-if(!file_exists(ROOT_PATH.'/public/install/install.lock')&&!file_exists(ROOT_PATH.'/config/install.lock')){
-    header('Location:/install');exit;
+if(!file_exists(ROOT_PATH.'/config/install.lock')&&!file_exists(ROOT_PATH.'/runtime/install.lock')){
+    header('Location:/install/');exit;
 }
 // 加载基础文件
 require __DIR__ . '/../thinkphp/base.php';
-
 // 支持事先使用静态方法设置Request对象和Config对象
 // 执行应用并响应
 Container::get('app')->run()->send();

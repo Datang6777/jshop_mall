@@ -53,12 +53,13 @@
         layui.laydate.render({
             elem: '#date',
             range: '到',
-            type: 'datetime'
+            type: 'datetime',
+						trigger: 'click' //自动弹出控件的事件，采用click弹出
         });
         //获取列表数据
         layui.table.render({
             elem: '#message',
-            height: 'full-220',
+            height: 'full-62',
             cellMinWidth: '80',
             page: 'true',
             limit: '20',
@@ -105,21 +106,15 @@
             layer.confirm('确定要删除此消息吗？', {
                 btn: ['确定','取消'] //按钮
             }, function(){
-                $.ajax({
-                    type:'get',
-                    url: "{:url('Message/del')}",
-                    data:'id='+id,
-                    success:function(e){
-                        layer.msg(e.msg);
-                        if(e.status){
-                            layui.table.reload('message');
-                        }
+                JsGet("{:url('Message/del')}?id="+id, function(e){
+                    layer.msg(e.msg);
+                    if(e.status){
+                        layui.table.reload('message');
                     }
                 });
             }, function(){
 
             });
-
         });
     });
 </script>

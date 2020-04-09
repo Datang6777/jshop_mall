@@ -28,8 +28,15 @@
         <div class="layui-form-mid layui-word-aux">数字越小，权重越大</div>
     </div>
     <div class="layui-form-item">
-        <label class="layui-form-label">用户领取：</label>
+        <label class="layui-form-label">可领取数量：</label>
         <div class="layui-input-inline seller-inline-1">
+            <input type="number" name="max_nums" required  lay-verify="required" value="{$info.params.max_nums}" autocomplete="off" class="layui-input">
+        </div>
+        <div class="layui-form-mid layui-word-aux">优惠券可领取数量,0为无限制</div>
+    </div>
+    <div class="layui-form-item">
+        <label class="layui-form-label">用户领取：</label>
+        <div class="layui-input-inline" style="width: 65px">
             <input type="checkbox" name="auto_receive" lay-skin="switch" {if $info.auto_receive == 1}checked{/if}  value="1" lay-text="启用|禁用">
         </div>
         <div class="layui-form-mid layui-word-aux">启用后，用户可在前台直接领取</div>
@@ -77,27 +84,23 @@
         laydate.render({
             elem: '#date',
             range: '到',
-            type: 'datetime'
+            type: 'datetime',
+						trigger: 'click' //自动弹出控件的事件，采用click弹出
         });
 
         //提交
         form.on('submit(promotion)', function(data){
-            $.ajax({
-                url:"{:url('promotion/couponEdit')}",
-                type:'post',
-                data:data.field,
-                success:function(res){
-                    if(res.status == true){
-                        layer.msg('保存成功', {
-                            time: 2000
-                        }, function(){
-                            window.location.href="{:url('coupon')}";
-                        });
-                    }else{
-                        layer.msg(res.msg);
-                    }
+            JsPost("{:url('promotion/couponEdit')}", data.field, function(res){
+                if(res.status == true){
+                    layer.msg('保存成功', {
+                        time: 2000
+                    }, function(){
+                        window.location.href="{:url('coupon')}";
+                    });
+                }else{
+                    layer.msg(res.msg);
                 }
-            },"json");
+            });
             return false;
         });
 
@@ -145,17 +148,12 @@
         });
         //促销条件删除
         $(document).on('click','.option-del',function(){
-            $.ajax({
-                type:'post',
-                url: "{:url('promotion/conditionDel')}",
-                data: 'promotion_id=' + $(this).attr('data-promotion_id') +  '&id='+$(this).attr('data-id'),
-                success:function(res){
-                    if(res.status){
-                        layer.msg('删除成功');
-                        conditionTables.reload();
-                    }else{
-                        layer.msg(res.msg);
-                    }
+            JsPost("{:url('promotion/conditionDel')}", {promotion_id: $(this).attr('data-promotion_id'), id: $(this).attr('data-id')}, function(res){
+                if(res.status){
+                    layer.msg('删除成功');
+                    conditionTables.reload();
+                }else{
+                    layer.msg(res.msg);
                 }
             });
         });
@@ -204,50 +202,38 @@
         });
         //促销结果删除
         $(document).on('click','.option-result-del',function(){
-            $.ajax({
-                type:'post',
-                url: "{:url('promotion/resultDel')}",
-                data: 'promotion_id=' + $(this).attr('data-promotion_id') +  '&id='+$(this).attr('data-id'),
-                success:function(res){
-                    if(res.status){
-                        layer.msg('删除成功');
-                        resultTables.reload();
-                    }else{
-                        layer.msg(res.msg);
-                    }
+            JsPost("{:url('promotion/resultDel')}", {promotion_id: $(this).attr('data-promotion_id'), id: $(this).attr('data-id')}, function(res){
+                if(res.status){
+                    layer.msg('删除成功');
+                    resultTables.reload();
+                }else{
+                    layer.msg(res.msg);
                 }
             });
         });
-
     });
 
     //选择促销条件
     function conditionAdd(callback){
-        $.ajax({
-            type:'get',
-            url: "{:url('promotion/conditionAdd')}",
-            data:'',
-            success:function(e){
-                if(e.status){
-                    window.box = layer.open({
-                        type: 1,
-                        content: e.data,//
-                        area: ['400px', '500px'],
-                        title:'选择促销条件',
-                        btn: ['下一步','取消'],
-                        yes: function(index, layero){
-                            if($('#condition_code').val() == ''){
-                                layer.msg('请选择促销条件');
-                                return false;
-                            }
-                            layer.close(index);
-                            callback($('#condition_code').val());
-//
+        JsGet("{:url('promotion/conditionAdd')}", function(e){
+            if(e.status){
+                window.box = layer.open({
+                    type: 1,
+                    content: e.data,//
+                    area: setpage(400,500),
+                    title:'选择促销条件',
+                    btn: ['下一步','取消'],
+                    yes: function(index, layero){
+                        if($('#condition_code').val() == ''){
+                            layer.msg('请选择促销条件');
+                            return false;
                         }
-                    });
-                }else{
-                    layer.msg(e.msg);
-                }
+                        layer.close(index);
+                        callback($('#condition_code').val());
+                    }
+                });
+            }else{
+                layer.msg(e.msg);
             }
         });
     }
@@ -265,68 +251,52 @@
         }else{
             str += 'promotion_id='+promotion_id+'&id='+id;
         }
-        $.ajax({
-            type:'get',
-            url: "{:url('promotion/conditionEdit')}",
-            data:str,
-            success:function(e){
-                if(e.status){
-                    layer.open({
-                        type: 1,
-                        content: e.data,//
-                        area: ['600px', '400px'],
-                        title:'设置促销条件',
-                        btn: ['完成','取消'],
-                        yes: function(index, layero){
-                            $.ajax({
-                                type:'post',
-                                url: "{:url('promotion/conditionEdit')}",
-                                data: $('#conditionEdit').serialize(),
-                                success:function(res){
-                                    if(res.status){
-                                        layer.close(index);
-                                        callback();
-                                    }else{
-                                        layer.msg(res.msg);
-                                    }
-                                }
-                            });
-                        }
-                    });
-                }else{
-                    layer.msg(e.msg);
-                }
+        JsGet("{:url('promotion/conditionEdit')}?"+str, function(e){
+            if(e.status){
+                layer.open({
+                    type: 1,
+                    content: e.data,//
+                    area: setpage(600,400),
+                    title:'设置促销条件',
+                    btn: ['完成','取消'],
+                    yes: function(index, layero){
+                        JsPost("{:url('promotion/conditionEdit')}", $('#conditionEdit').serialize(), function(res){
+                            if(res.status){
+                                layer.close(index);
+                                callback();
+                            }else{
+                                layer.msg(res.msg);
+                            }
+                        });
+                    }
+                });
+            }else{
+                layer.msg(e.msg);
             }
         });
     }
     //////////////////////华丽丽的分割线/////////////////////////////////////////////////
     //选择促销结果
     function resultAdd(callback){
-        $.ajax({
-            type:'get',
-            url: "{:url('promotion/resultAdd')}",
-            data:'',
-            success:function(e){
-                if(e.status){
-                    window.box = layer.open({
-                        type: 1,
-                        content: e.data,//
-                        area: ['400px', '500px'],
-                        title:'选择促销结果',
-                        btn: ['下一步','取消'],
-                        yes: function(index, layero){
-                            if($('#result_code').val() == ''){
-                                layer.msg('请选择促销结果');
-                                return false;
-                            }
-                            layer.close(index);
-                            callback($('#result_code').val());
-//
+        JsGet("{:url('promotion/resultAdd')}", function(e){
+            if(e.status){
+                window.box = layer.open({
+                    type: 1,
+                    content: e.data,//
+                    area: setpage(400,500),
+                    title:'选择促销结果',
+                    btn: ['下一步','取消'],
+                    yes: function(index, layero){
+                        if($('#result_code').val() == ''){
+                            layer.msg('请选择促销结果');
+                            return false;
                         }
-                    });
-                }else{
-                    layer.msg(e.msg);
-                }
+                        layer.close(index);
+                        callback($('#result_code').val());
+                    }
+                });
+            }else{
+                layer.msg(e.msg);
             }
         });
     }
@@ -344,40 +314,28 @@
         }else{
             str += 'promotion_id='+promotion_id+'&id='+id;
         }
-        $.ajax({
-            type:'get',
-            url: "{:url('promotion/resultEdit')}",
-            data:str,
-            success:function(e){
-                if(e.status){
-                    layer.open({
-                        type: 1,
-                        content: e.data,//
-                        area: ['600px', '400px'],
-                        title:'设置促销结果',
-                        btn: ['完成','取消'],
-                        yes: function(index, layero){
-                            $.ajax({
-                                type:'post',
-                                url: "{:url('promotion/resultEdit')}",
-                                data: $('#resultEdit').serialize(),
-                                success:function(res){
-                                    if(res.status){
-                                        layer.close(index);
-                                        callback();
-                                    }else{
-                                        layer.msg(res.msg);
-                                    }
-                                }
-                            });
-                        }
-                    });
-                }else{
-                    layer.msg(e.msg);
-                }
+        JsGet("{:url('promotion/resultEdit')}?"+str, function(e){
+            if(e.status){
+                layer.open({
+                    type: 1,
+                    content: e.data,//
+                    area: setpage(600,400),
+                    title:'设置促销结果',
+                    btn: ['完成','取消'],
+                    yes: function(index, layero){
+                        JsPost("{:url('promotion/resultEdit')}", $('#resultEdit').serialize(), function(res){
+                            if(res.status){
+                                layer.close(index);
+                                callback();
+                            }else{
+                                layer.msg(res.msg);
+                            }
+                        });
+                    }
+                });
+            }else{
+                layer.msg(e.msg);
             }
         });
     }
-
-
 </script>

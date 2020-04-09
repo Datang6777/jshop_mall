@@ -22,6 +22,7 @@ use app\common\model\Area;
 use app\common\model\Payments;
 use app\common\model\Logistics;
 
+error_reporting(E_ERROR | E_WARNING | E_PARSE);
 
 /**
  * 返回当前的毫秒时间戳
@@ -229,7 +230,7 @@ function _sImage($image_id = '', $type = 's')
     $image_obj = new \app\common\model\Images();
     $image     = $image_obj->where([
         'id' => $image_id
-    ])->field('url')->find();
+    ])->field('url')->cache(true)->find();
     if ($image) {
         if (stripos($image['url'], 'http') !== false || stripos($image['url'], 'https') !== false) {
             return str_replace("\\", "/", $image['url']);
@@ -285,9 +286,9 @@ function redirect_url($url = "")
         $str = cookie('redirect_url');
         cookie('redirect_url', null);
     } else {
-        if($url){
+        if ($url) {
             $str = $url;
-        }else{
+        } else {
             $str = '/';
         }
 
@@ -304,6 +305,9 @@ function redirect_url($url = "")
  */
 function get_user_info($user_id, $field = 'mobile')
 {
+    if (!$user_id) {
+        return "";
+    }
     $user = app\common\model\User::get($user_id);
     if ($user) {
         if ($field == 'nickname') {
@@ -898,6 +902,21 @@ function getSetting($key = '')
 
 
 /**
+ * 获取多个系统设置
+ * @param string $key //多个英文逗号分隔
+ * @return array
+ * @throws \think\db\exception\DataNotFoundException
+ * @throws \think\db\exception\ModelNotFoundException
+ * @throws \think\exception\DbException
+ */
+function getMultipleSetting($key = '')
+{
+    $systemSettingModel = new \app\common\model\Setting();
+    return $systemSettingModel->getMultipleValue($key);
+}
+
+
+/**
  * 获取插件配置信息
  * @param string $name
  * @return array|mixed
@@ -1029,7 +1048,7 @@ function checkAddons($hookname = '')
  * @throws \think\db\exception\ModelNotFoundException
  * @throws \think\exception\DbException
  */
-function isInGroup($gid = 0, &$promotion_id = 0)
+function isInGroup($gid = 0, &$promotion_id = 0,&$condition = [])
 {
     if (!$gid) {
         return false;
@@ -1042,7 +1061,7 @@ function isInGroup($gid = 0, &$promotion_id = 0)
     $where[]   = ['p.etime', 'gt', time()];
     $where[]   = ['pc.params', 'like', '%"' . $gid . '"%'];
     $where[]   = ['p.type', 'in', [$promotion::TYPE_GROUP, $promotion::TYPE_SKILL]];
-    $condition = $promotion->field('p.id as id')
+    $condition = $promotion->field('p.id as id,p.params as params,p.stime as stime,p.etime as etime')
         ->alias('p')
         ->join('promotion_condition pc', 'pc.promotion_id = p.id')
         ->where($where)
@@ -1172,6 +1191,26 @@ function convertString($value = '')
 }
 
 
+/***
+ * 导出时字符串太长不显示时，处理
+ */
+function mobile_string($user_id = 0)
+{
+    $mobile = get_user_info($user_id);
+    return $mobile . "\t";
+}
+
+
+/***
+ * 导出时字符串太长不显示时，处理
+ */
+function nickname_string($user_id = 0)
+{
+    $nickname = get_user_info($user_id, 'nickname');
+    return $nickname . "\t";
+}
+
+
 /**
  * 根据token获取userid
  * @param string $token
@@ -1207,158 +1246,6 @@ function clearHtml($content, $rule = [])
         $content = preg_replace('/' . $v . '\s*:\s*\d+\s*px\s*;?/i', '', $content);
     }
     return $content;
-}
-
-
-/**
- * 生成海报
- * @param $config
- * @param string $filename
- * @return bool|string
- */
-function createPoster($config, $filename = '')
-{
-    if (empty($filename)) {
-        header("content-type: image/png");
-    }
-
-    $imageDefault = [
-        'left'    => 0,
-        'top'     => 0,
-        'right'   => 0,
-        'bottom'  => 0,
-        'width'   => 100,
-        'height'  => 100,
-        'opacity' => 100
-    ];
-    $textDefault  = [
-        'text'       => '',
-        'left'       => 0,
-        'top'        => 0,
-        'fontSize'   => 24,
-        'width'      => 0,
-        'lineHeight' => 30,
-        'length'     => 100,
-        'fontColor'  => '255,255,255',
-        'angle'      => 0,
-        'center'     => false
-    ];
-    $background   = $config['background'];
-
-    //获取背景
-    $backgroundInfo   = getimagesize($background);
-    $backgroundFun    = 'imagecreatefrom' . image_type_to_extension($backgroundInfo[2], false);
-    $background       = $backgroundFun($background);
-    $backgroundWidth  = imagesx($background);
-    $backgroundHeight = imagesy($background);
-    $imageRes         = imageCreatetruecolor($backgroundWidth, $backgroundHeight);
-    $color            = imagecolorallocate($imageRes, 0, 0, 0);
-    imagefill($imageRes, 0, 0, $color);
-    // imageColorTransparent($imageRes, $color);  //颜色透明
-    imagecopyresampled($imageRes, $background, 0, 0, 0, 0, imagesx($background), imagesy($background), imagesx($background), imagesy($background));
-
-    //处理图片
-    if (!empty($config['image'])) {
-        foreach ($config['image'] as $key => $val) {
-            $val      = array_merge($imageDefault, $val);
-            $info     = getimagesize($val['url']);
-            $function = 'imagecreatefrom' . image_type_to_extension($info[2], false);
-            if ($val['stream']) {
-                $info     = getimagesizefromstring($val['url']);
-                $function = 'imagecreatefromstring';
-            }
-            $res       = $function($val['url']);
-            $resWidth  = $info[0];
-            $resHeight = $info[1];
-            $canvas    = imagecreatetruecolor($val['width'], $val['height']);
-            imagefill($canvas, 0, 0, $color);
-            imagecopyresampled($canvas, $res, 0, 0, 0, 0, $val['width'], $val['height'], $resWidth, $resHeight);
-            $val['left'] = $val['left'] < 0 ? $backgroundWidth - abs($val['left']) - $val['width'] : $val['left'];
-            $val['top']  = $val['top'] < 0 ? $backgroundHeight - abs($val['top']) - $val['height'] : $val['top'];
-            imagecopymerge($imageRes, $canvas, $val['left'], $val['top'], $val['right'], $val['bottom'], $val['width'], $val['height'], $val['opacity']);
-        }
-    }
-
-    //处理文字
-    if (!empty($config['text'])) {
-        foreach ($config['text'] as $key => $val) {
-            $val = array_merge($textDefault, $val);
-            list($R, $G, $B) = explode(',', $val['fontColor']);
-            $val['fontColor'] = imagecolorallocate($imageRes, $R, $G, $B);
-            $val['left']      = $val['left'] < 0 ? $backgroundWidth - abs($val['left']) : $val['left'];
-            $val['top']       = $val['top'] < 0 ? $backgroundHeight - abs($val['top']) : $val['top'];
-            if ($val['length'] != 0) {
-                if (mb_strlen($val['text'], 'utf8') > $val['length']) {
-                    $val['text'] = mb_substr($val['text'], 0, $val['length'], 'utf8') . '...';
-                }
-            }
-            $temp_string = '';
-            $rows        = 0;
-            for ($i = 0; $i < mb_strlen($val['text']); $i++) {
-                $box            = imagettfbbox($val['fontSize'], $val['angle'], $val['fontPath'], $temp_string);
-                $_string_length = $box[2] - $box[0];
-                $tempText       = mb_substr($val['text'], $i, 1);
-                $temp           = imagettfbbox($val['fontSize'], $val['angle'], $val['fontPath'], $tempText);
-                if ($_string_length + $temp[2] - $temp[0] < $val['width']) {
-                    $temp_string .= mb_substr($val['text'], $i, 1);
-                    if ($i == mb_strlen($val['text']) - 1) {
-                        $val['top'] += $val['lineHeight'];
-                        $rows++;
-                        if ($val['center']) {
-                            $fontBox = imagettfbbox($val['fontSize'], $val['angle'], $val['fontPath'], $temp_string);
-                            imagettftext($imageRes, $val['fontSize'], $val['angle'], $val['left'] + ceil(($backgroundWidth - $val['left'] - $fontBox[2]) / 2), $val['top'], $val['fontColor'], $val['fontPath'], $temp_string);
-                        } else {
-                            imagettftext($imageRes, $val['fontSize'], $val['angle'], $val['left'], $val['top'], $val['fontColor'], $val['fontPath'], $temp_string);
-                        }
-                    }
-                } else {
-                    $texts    = mb_substr($val['text'], $i, 1);
-                    $isSymbol = preg_match("/[\\\\pP]/u", $texts) ? true : false;
-                    if ($isSymbol) {
-                        $temp_string .= $texts;
-                        $f  = mb_substr($val['text'], $i + 1, 1);
-                        $fh = preg_match("/[\\\\pP]/u", $f) ? true : false;
-                        if ($fh) {
-                            $temp_string .= $f;
-                            $i++;
-                        }
-                    } else {
-                        $i--;
-                    }
-                    $tmp_str_len = mb_strlen($temp_string);
-                    $s           = mb_substr($temp_string, $tmp_str_len - 1, 1);
-                    $symbol      = array("\"", "“", "'", "<", "《",);
-                    $symbolRes   = in_array($s, $symbol);
-                    if ($symbolRes) {
-                        $temp_string = rtrim($temp_string, $s);
-                        $i--;
-                    }
-                    $val['top'] += $val['lineHeight'];
-                    $rows++;
-                    if ($val['center']) {
-                        $fontBox = imagettfbbox($val['fontSize'], $val['angle'], $val['fontPath'], $temp_string);
-                        imagettftext($imageRes, $val['fontSize'], $val['angle'], ceil(($backgroundWidth - $val['width'] - $fontBox[2]) / 2), $val['top'], $val['fontColor'], $val['fontPath'], $temp_string);
-                    } else {
-                        imagettftext($imageRes, $val['fontSize'], $val['angle'], $val['left'], $val['top'], $val['fontColor'], $val['fontPath'], $temp_string);
-                    }
-                    $temp_string = "";
-                }
-            }
-        }
-    }
-
-    //生成图片
-    if (!empty($filename)) {
-        $res = imagejpeg($imageRes, $filename, 95); //保存到本地
-        //$res = imagepng($imageRes,$filename,9);
-        //$res = imagegif($imageRes,$filename);
-        imagedestroy($imageRes);
-        if (!$res) return false;
-        return $filename;
-    } else {
-        imagejpeg($imageRes);     //在浏览器上显示
-        imagedestroy($imageRes);
-    }
 }
 
 
@@ -1459,9 +1346,348 @@ function time_ago($posttime)
         return intval(($counttime / (3600 * 24))) . '天前';
     } else if ($counttime >= 3600 * 24 * 7 && $counttime <= 3600 * 24 * 30) {
         return intval(($counttime / (3600 * 24 * 7))) . '周前';
-    } else if ($counttime >= 3600 * 24 * 30 && $counttime <= 3600 * 24 * 365){
+    } else if ($counttime >= 3600 * 24 * 30 && $counttime <= 3600 * 24 * 365) {
         return intval(($counttime / (3600 * 24 * 30))) . '个月前';
     } else if ($counttime >= 3600 * 24 * 365) {
-        return intval(($counttime / (3600 * 24 * 365))). '年前';
+        return intval(($counttime / (3600 * 24 * 365))) . '年前';
     }
+}
+
+
+/**
+ * 获取插件状态 todo 缓存插件
+ * @param $name
+ * @return 1：已安装，false：未安装
+ */
+function get_addons_status($name)
+{
+    if (!$name) {
+        return [];
+    }
+    $addonModel = new \app\common\model\Addons();
+    $info       = $addonModel->where(['name' => $name])->field('status')->find();
+    return (isset($info['status']) && ($info['status'] == $addonModel::INSTALL_STATUS)) ? $info['status'] : false;
+}
+
+
+/**
+ * 加密函数
+ * @param string $txt 需要加密的字符串
+ * @return string 返回加密结果
+ */
+function encrypt($txt)
+{
+    if (!file_exists(ROOT_PATH . '/config/install.lock')) {
+        @touch(ROOT_PATH . '/config/install.lock');
+    }
+    $key = filectime(ROOT_PATH . '/config/install.lock');
+
+    if (empty($txt)) return $txt;
+    if (empty($key)) $key = md5(MD5_KEY);
+    $chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.";
+    $ikey  = "-x6g6ZWm2G9g_vr0Bo.pOq3kRIxsZ6rm";
+    $nh1   = rand(0, 64);
+    $nh2   = rand(0, 64);
+    $nh3   = rand(0, 64);
+    $ch1   = $chars{$nh1};
+    $ch2   = $chars{$nh2};
+    $ch3   = $chars{$nh3};
+    $nhnum = $nh1 + $nh2 + $nh3;
+    $knum  = 0;
+    $i     = 0;
+    while (isset($key{$i})) $knum += ord($key{$i++});
+    $mdKey = substr(md5(md5(md5($key . $ch1) . $ch2 . $ikey) . $ch3), $nhnum % 8, $knum % 8 + 16);
+    $txt   = base64_encode(time() . '_' . $txt);
+    $txt   = str_replace(array('+', '/', '='), array('-', '_', '.'), $txt);
+    $tmp   = '';
+    $j     = 0;
+    $k     = 0;
+    $tlen  = strlen($txt);
+    $klen  = strlen($mdKey);
+    for ($i = 0; $i < $tlen; $i++) {
+        $k = $k == $klen ? 0 : $k;
+        $j = ($nhnum + strpos($chars, $txt{$i}) + ord($mdKey{$k++})) % 64;
+        $tmp .= $chars{$j};
+    }
+    $tmplen = strlen($tmp);
+    $tmp    = substr_replace($tmp, $ch3, $nh2 % ++$tmplen, 0);
+    $tmp    = substr_replace($tmp, $ch2, $nh1 % ++$tmplen, 0);
+    $tmp    = substr_replace($tmp, $ch1, $knum % ++$tmplen, 0);
+    return $tmp;
+}
+
+/**
+ * 解密函数
+ * @param string $txt 需要解密的字符串
+ * @return string 字符串类型的返回结果
+ */
+function decrypt($txt, $ttl = 0)
+{
+    if (empty($txt)) return $txt;
+    $key = filectime(ROOT_PATH . '/config/install.lock');
+    if (empty($key)) $key = md5(MD5_KEY);
+    $chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.";
+    $ikey  = "-x6g6ZWm2G9g_vr0Bo.pOq3kRIxsZ6rm";
+    $knum  = 0;
+    $i     = 0;
+    $tlen  = @strlen($txt);
+    while (isset($key{$i})) $knum += ord($key{$i++});
+    $ch1   = @$txt{$knum % $tlen};
+    $nh1   = strpos($chars, $ch1);
+    $txt   = @substr_replace($txt, '', $knum % $tlen--, 1);
+    $ch2   = @$txt{$nh1 % $tlen};
+    $nh2   = @strpos($chars, $ch2);
+    $txt   = @substr_replace($txt, '', $nh1 % $tlen--, 1);
+    $ch3   = @$txt{$nh2 % $tlen};
+    $nh3   = @strpos($chars, $ch3);
+    $txt   = @substr_replace($txt, '', $nh2 % $tlen--, 1);
+    $nhnum = $nh1 + $nh2 + $nh3;
+    $mdKey = substr(md5(md5(md5($key . $ch1) . $ch2 . $ikey) . $ch3), $nhnum % 8, $knum % 8 + 16);
+    $tmp   = '';
+    $j     = 0;
+    $k     = 0;
+    $tlen  = @strlen($txt);
+    $klen  = @strlen($mdKey);
+    for ($i = 0; $i < $tlen; $i++) {
+        $k = $k == $klen ? 0 : $k;
+        $j = strpos($chars, $txt{$i}) - $nhnum - ord($mdKey{$k++});
+        while ($j < 0) $j += 64;
+        $tmp .= $chars{$j};
+    }
+    $tmp = str_replace(array('-', '_', '.'), array('+', '/', '='), $tmp);
+    $tmp = trim(base64_decode($tmp));
+    if (preg_match("/\d{10}_/s", substr($tmp, 0, 11))) {
+        if ($ttl > 0 && (time() - substr($tmp, 0, 11) > $ttl)) {
+            $tmp = null;
+        } else {
+            $tmp = substr($tmp, 11);
+        }
+    }
+    return $tmp;
+}
+
+
+/**
+ * 分享URL压缩
+ * @param $url
+ * @return string // type-invite-id-team_id  type=场景类型  invite=邀请码  id=场景ID值  team_id=拼团ID
+ */
+function share_parameter_encode($url)
+{
+    $urlArray     = explode('&', $url);
+    $allParameter = [
+        'type'    => '',
+        'invite'  => '',
+        'id'      => '',
+        'team_id' => ''
+    ];
+    foreach ($urlArray as $v) {
+        $parameter                   = explode('=', $v);
+        $allParameter[$parameter[0]] = $parameter[1];
+    }
+    $newUrl = $allParameter['type'] . '-' . $allParameter['invite'] . '-' . $allParameter['id'] . '-' . $allParameter['team_id'];
+    return $newUrl;
+}
+
+
+/**
+ * 分享URL解压缩
+ * @param $url
+ * @return string
+ */
+function share_parameter_decode($url)
+{
+    $urlArray = explode('-', $url);
+    $newUrl   = 'type=' . $urlArray[0] . '&invite=' . $urlArray[1] . '&id=' . $urlArray[2] . '&team_id=' . $urlArray[3];
+    return $newUrl;
+}
+
+
+/**
+ * Translates a number to a short alhanumeric version
+ *
+ * Translated any number up to 9007199254740992
+ * to a shorter version in letters e.g.:
+ * 9007199254740989 --> PpQXn7COf
+ *
+ * specifiying the second argument true, it will
+ * translate back e.g.:
+ * PpQXn7COf --> 9007199254740989
+ *
+ * this function is based on any2dec && dec2any by
+ * fragmer[at]mail[dot]ru
+ * see: http://nl3.php.net/manual/en/function.base-convert.php#52450
+ *
+ * If you want the alphaID to be at least 3 letter long, use the
+ * $pad_up = 3 argument
+ *
+ * In most cases this is better than totally random ID generators
+ * because this can easily avoid duplicate ID's.
+ * For example if you correlate the alpha ID to an auto incrementing ID
+ * in your database, you're done.
+ *
+ * The reverse is done because it makes it slightly more cryptic,
+ * but it also makes it easier to spread lots of IDs in different
+ * directories on your filesystem. Example:
+ * $part1 = substr($alpha_id,0,1);
+ * $part2 = substr($alpha_id,1,1);
+ * $part3 = substr($alpha_id,2,strlen($alpha_id));
+ * $destindir = "/".$part1."/".$part2."/".$part3;
+ * // by reversing, directories are more evenly spread out. The
+ * // first 26 directories already occupy 26 main levels
+ *
+ * more info on limitation:
+ * - http://blade.nagaokaut.ac.jp/cgi-bin/scat.rb/ruby/ruby-talk/165372
+ *
+ * if you really need this for bigger numbers you probably have to look
+ * at things like: http://theserverpages.com/php/manual/en/ref.bc.php
+ * or: http://theserverpages.com/php/manual/en/ref.gmp.php
+ * but I haven't really dugg into this. If you have more info on those
+ * matters feel free to leave a comment.
+ *
+ * @author  Kevin van Zonneveld <kevin@vanzonneveld.net>
+ * @author  Simon Franz
+ * @author  Deadfish
+ * @copyright 2008 Kevin van Zonneveld (http://kevin.vanzonneveld.net)
+ * @license   http://www.opensource.org/licenses/bsd-license.php New BSD Licence
+ * @version   SVN: Release: $Id: alphaID.inc.php 344 2009-06-10 17:43:59Z kevin $
+ * @link    http://kevin.vanzonneveld.net/
+ *
+ * @param mixed $in String or long input to translate
+ * @param boolean $to_num Reverses translation when true
+ * @param mixed $pad_up Number or boolean padds the result up to a specified length
+ * @param string $passKey Supplying a password makes it harder to calculate the original ID
+ *
+ * @return mixed string or long
+ */
+function alphaID($in, $to_num = false, $pad_up = false)
+{
+    if (!file_exists(ROOT_PATH . '/config/install.lock')) {
+        @touch(ROOT_PATH . '/config/install.lock');
+    }
+    $passKey = filectime(ROOT_PATH . '/config/install.lock');
+
+    $index = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    if ($passKey !== null) {
+        // Although this function's purpose is to just make the
+        // ID short - and not so much secure,
+        // with this patch by Simon Franz (http://blog.snaky.org/)
+        // you can optionally supply a password to make it harder
+        // to calculate the corresponding numeric ID
+
+        for ($n = 0; $n < strlen($index); $n++) {
+            $i[] = substr($index, $n, 1);
+        }
+
+        $passhash = hash('sha256', $passKey);
+        $passhash = (strlen($passhash) < strlen($index))
+            ? hash('sha512', $passKey)
+            : $passhash;
+
+        for ($n = 0; $n < strlen($index); $n++) {
+            $p[] = substr($passhash, $n, 1);
+        }
+
+        array_multisort($p, SORT_DESC, $i);
+        $index = implode($i);
+    }
+
+    $base = strlen($index);
+
+    if ($to_num) {
+        // Digital number  <<--  alphabet letter code
+        $in  = strrev($in);
+        $out = 0;
+        $len = strlen($in) - 1;
+        for ($t = 0; $t <= $len; $t++) {
+            $bcpow = bcpow($base, $len - $t);
+            $out   = $out + strpos($index, substr($in, $t, 1)) * $bcpow;
+        }
+
+        if (is_numeric($pad_up)) {
+            $pad_up--;
+            if ($pad_up > 0) {
+                $out -= pow($base, $pad_up);
+            }
+        }
+        $out = sprintf('%F', $out);
+        $out = substr($out, 0, strpos($out, '.'));
+    } else {
+        // Digital number  -->>  alphabet letter code
+        if (is_numeric($pad_up)) {
+            $pad_up--;
+            if ($pad_up > 0) {
+                $in += pow($base, $pad_up);
+            }
+        }
+
+        $out = "";
+        for ($t = floor(log($in, $base)); $t >= 0; $t--) {
+            $bcp = bcpow($base, $t);
+            $a   = floor($in / $bcp) % $base;
+            $out = $out . substr($index, $a, 1);
+            $in  = $in - ($a * $bcp);
+        }
+        $out = strrev($out); // reverse
+    }
+
+    return $out;
+}
+
+
+/**
+ * 过滤XSS攻击
+ */
+function remove_xss($val) {
+    // remove all non-printable characters. CR(0a) and LF(0b) and TAB(9) are allowed
+    // this prevents some character re-spacing such as <java\0script>
+    // note that you have to handle splits with \n, \r, and \t later since they *are* allowed in some inputs
+    $val = preg_replace('/([\x00-\x08,\x0b-\x0c,\x0e-\x19])/', '', $val);
+
+    // straight replacements, the user should never need these since they're normal characters
+    // this prevents like <IMG SRC=@avascript:alert('XSS')>
+    $search = 'abcdefghijklmnopqrstuvwxyz';
+    $search .= 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $search .= '1234567890!@#$%^&*()';
+    $search .= '~`";:?+/={}[]-_|\'\\';
+    for ($i = 0; $i < strlen($search); $i++) {
+        // ;? matches the ;, which is optional
+        // 0{0,7} matches any padded zeros, which are optional and go up to 8 chars
+
+        // @ @ search for the hex values
+        $val = preg_replace('/(&#[xX]0{0,8}'.dechex(ord($search[$i])).';?)/i', $search[$i], $val); // with a ;
+        // @ @ 0{0,7} matches '0' zero to seven times
+        $val = preg_replace('/(&#0{0,8}'.ord($search[$i]).';?)/', $search[$i], $val); // with a ;
+    }
+
+    // now the only remaining whitespace attacks are \t, \n, and \r
+    $ra1 = array('javascript', 'vbscript', 'expression', 'applet', 'meta', 'xml', 'blink', 'link', 'style', 'script', 'embed', 'object', 'iframe', 'frame', 'frameset', 'ilayer', 'layer', 'bgsound', 'title', 'base');
+    $ra2 = array('onabort', 'onactivate', 'onafterprint', 'onafterupdate', 'onbeforeactivate', 'onbeforecopy', 'onbeforecut', 'onbeforedeactivate', 'onbeforeeditfocus', 'onbeforepaste', 'onbeforeprint', 'onbeforeunload', 'onbeforeupdate', 'onblur', 'onbounce', 'oncellchange', 'onchange', 'onclick', 'oncontextmenu', 'oncontrolselect', 'oncopy', 'oncut', 'ondataavailable', 'ondatasetchanged', 'ondatasetcomplete', 'ondblclick', 'ondeactivate', 'ondrag', 'ondragend', 'ondragenter', 'ondragleave', 'ondragover', 'ondragstart', 'ondrop', 'onerror', 'onerrorupdate', 'onfilterchange', 'onfinish', 'onfocus', 'onfocusin', 'onfocusout', 'onhelp', 'onkeydown', 'onkeypress', 'onkeyup', 'onlayoutcomplete', 'onload', 'onlosecapture', 'onmousedown', 'onmouseenter', 'onmouseleave', 'onmousemove', 'onmouseout', 'onmouseover', 'onmouseup', 'onmousewheel', 'onmove', 'onmoveend', 'onmovestart', 'onpaste', 'onpropertychange', 'onreadystatechange', 'onreset', 'onresize', 'onresizeend', 'onresizestart', 'onrowenter', 'onrowexit', 'onrowsdelete', 'onrowsinserted', 'onscroll', 'onselect', 'onselectionchange', 'onselectstart', 'onstart', 'onstop', 'onsubmit', 'onunload');
+    $ra = array_merge($ra1, $ra2);
+
+    $found = true; // keep replacing as long as the previous round replaced something
+    while ($found == true) {
+        $val_before = $val;
+        for ($i = 0; $i < sizeof($ra); $i++) {
+            $pattern = '/';
+            for ($j = 0; $j < strlen($ra[$i]); $j++) {
+                if ($j > 0) {
+                    $pattern .= '(';
+                    $pattern .= '(&#[xX]0{0,8}([9ab]);)';
+                    $pattern .= '|';
+                    $pattern .= '|(&#0{0,8}([9|10|13]);)';
+                    $pattern .= ')*';
+                }
+                $pattern .= $ra[$i][$j];
+            }
+            $pattern .= '/i';
+            $replacement = substr($ra[$i], 0, 2).'<x>'.substr($ra[$i], 2); // add in <> to nerf the tag
+            $val = preg_replace($pattern, $replacement, $val); // filter out the hex tags
+            if ($val_before == $val) {
+                // no replacements were made, so exit the loop
+                $found = false;
+            }
+        }
+    }
+    return $val;
 }

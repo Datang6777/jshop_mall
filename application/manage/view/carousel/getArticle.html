@@ -10,6 +10,9 @@
         <div class="layui-inline">
             <button class="layui-btn layui-btn-sm" lay-submit lay-filter="article_search">提交</button>
         </div>
+
+        <input type="hidden" id="article_id_key" value="{$article_id_key}">
+        <input type="hidden" id="article_name_key" value="{$article_name_key}">
     </div>
 </div>
 
@@ -29,7 +32,7 @@
             cols: [[ //标题栏
                 {type: 'numbers'},
                 {field: 'title', title: '标题',align:'center'},
-                {field: 'tname', title: '类型',align:'center',sort:true},
+                {field: 'type_name', title: '类型',align:'center',sort:true},
                 {field: 'is_pub', title: '状态',align:'center',sort:true,width:80},
                 {width:150, title:'操作',align:'center', toolbar:'#articleBar'}
             ]]
@@ -37,7 +40,6 @@
 
         //搜索
         form.on('submit(article_search)', function(data){
-            console.log(data.field);
             layui.table.reload('articleTable', {
                 where: data.field
                 ,page: {
@@ -49,12 +51,14 @@
 
         date.render({
             elem: '#ctime',
-            range: '~'
+            range: '~',
+						trigger: 'click' //自动弹出控件的事件，采用click弹出
         });
 
         date.render({
             elem: '#utime',
-            range: '~'
+            range: '~',
+						trigger: 'click' //自动弹出控件的事件，采用click弹出
         });
 
     })

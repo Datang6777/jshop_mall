@@ -62,6 +62,7 @@ class Form extends Manage
             $data['sort']         = input('sort/d', '100');
             $data['return_msg']   = input('return_msg/s', '保存成功');
             $data['end_date']     = input('end_date', '0');
+            $data['times']        = input('times', '0');
             if ($data['end_date'] != '0') {
                 $data['end_date'] = strtotime($data['end_date']);
             }
@@ -129,6 +130,7 @@ class Form extends Manage
             $data['sort']         = input('sort/d', '100');
             $data['return_msg']   = input('return_msg/s', '保存成功');
             $data['end_date']     = input('end_date', '0');
+            $data['times']        = input('times', '0');
             if ($data['end_date'] != '0') {
                 $data['end_date'] = strtotime($data['end_date']);
             }
@@ -259,7 +261,9 @@ class Form extends Manage
         $this->assign('total_submit', $total_submit);
         $this->assign('total_sum', getMoney($total_sum));
         $this->assign('id', $id);
-        $result['data'] = $this->fetch('report');
+        $result['data']   = $this->fetch('report');
+        $result['status'] = true;
+        $result['msg']    = '参数错误';
         return $result;
 
     }

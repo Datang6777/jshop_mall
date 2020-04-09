@@ -25,6 +25,10 @@ return [
                 'code' => 'wxappLogin2',
                 'is_login' => false
             ],
+            'alipayapplogin1' => [
+                'code' => 'alipayappLogin1',
+                'is_login' => false
+            ],
             'sms' => [
                 'code' => 'sms',
                 'is_login' => false
@@ -35,6 +39,10 @@ return [
             ],
             'reg' => [
                 'code' => 'reg',
+                'is_login' => false
+            ],
+            'officiallogin' => [
+                'code' => 'officialLogin',
                 'is_login' => false
             ],
             'info' => [
@@ -107,7 +115,7 @@ return [
             ],
             'pay' => [
                 'code' => 'pay',
-                'is_login' => true,
+                'is_login' => false,
             ],
             'orderevaluate' => [
                 'code' => 'orderEvaluate',
@@ -165,9 +173,9 @@ return [
                 'code' => 'editPwd',
                 'is_login' => true
             ],
-            'forgotpwd' => [
-                'code' => 'forgotPwd',
-                'is_login' => true
+            'forgetpwd' => [
+                'code' => 'forgetPwd',
+                'is_login' => false
             ],
             'balancelist' => [
                 'code' => 'userBalance',
@@ -229,6 +237,30 @@ return [
                 'code' => 'getPoster',
                 'is_login' => false
             ],
+            'uniapplogin'=>[
+                'code' => 'uniAppLogin',
+                'is_login' => false
+            ],
+            'shareurl' => [
+                'code' => 'shareUrl',
+                'is_login' => false
+            ],
+            'myinvoicelist' => [
+                'code' => 'myInvoiceList',
+                'is_login' => true
+            ],
+            'ttlogin' => [
+                'code' => 'ttLogin',
+                'is_login' => false
+            ],
+            'share' => [
+                'code' => 'share',
+                'is_login' => false
+            ],
+            'deshare' => [
+                'code' => 'deshare',
+                'is_login' => false
+            ]
         ]
     ],
 
@@ -263,6 +295,18 @@ return [
             ],
             'getArticleDetail' => [
                 'code' => 'getArticleDetail',
+                'is_login' => false
+            ],
+            'getweixinmessage'=>[
+                'code'=>'getWeixinMessage',
+                'is_login' => false
+            ],
+            'leftarticletype' => [
+                'code' => 'leftArticleType',
+                'is_login' => false
+            ],
+            'search' => [
+                'code' => 'search',
                 'is_login' => false
             ]
         ]
@@ -345,6 +389,14 @@ return [
             'getnumber' => [
                 'code' => 'getNumber',
                 'is_login' => true
+            ],
+            'batchsetcart' => [
+                'code' => 'batchSetCart',
+                'is_login' => true
+            ],
+            'getlistselectall' => [
+                'code'     => 'getListSelectAll',
+                'is_login' => true
             ]
         ]
     ],
@@ -390,10 +442,6 @@ return [
             ],
             'confirm' => [
                 'code' => 'confirm',
-                'is_login' => true
-            ],
-            'getlist' => [
-                'code' => 'getList',
                 'is_login' => true
             ],
             'create' => [
@@ -442,10 +490,6 @@ return [
             ],
             'logisticbyapi' => [
                 'code' => 'logisticsByApi',
-                'is_login' => false
-            ],
-            'getcashpooling' => [
-                'code' => 'getCashPooling',
                 'is_login' => false
             ],
             'gettaxcode' => [
@@ -498,6 +542,19 @@ return [
             'getpickgoods'=>[
                 'code'=>'getPickGoods',
                 'is_login'=>false
+            ],
+            'goodsall' => [
+                'code' => 'goodsall',
+                'is_login'=>false
+            ],
+            'newgoods' => [
+                'code' => 'newgoods',
+                'is_login'=>false
+            ]
+            ,
+            'promotiongoods' => [
+                'code' => 'promotiongoods',
+                'is_login'=>false
             ]
         ]
     ],
@@ -514,6 +571,10 @@ return [
                 'code' => 'getInfo',
                 'is_login' => true
             ],
+            'checkpay' => [
+                'code' => 'checkPay',
+                'is_login' => false
+            ]
         ]
     ],
 
@@ -637,5 +698,31 @@ return [
                 'is_login' => false
             ]
         ]
-    ]
+    ],
+    'pintuan' => [
+        'code' => 'Pintuan',
+        'method' => [
+            'list' => [
+                'code' => 'getList',
+                'is_login' => false
+            ],
+            'goodsinfo' => [
+                'code' => 'getGoodsInfo',
+                'is_login' => false
+            ],
+            'productinfo' => [
+                'code' => 'getProductInfo',
+                'is_login' => false
+            ],
+            'pintuanrecord' => [
+                'code' => 'pintuanRecord',
+                'is_login' => false,
+            ],
+            'pintuanteam' => [
+                'code' => 'pintuanTeam',
+                'is_login' => false
+            ]
+
+        ]
+    ],
 ];

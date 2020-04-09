@@ -55,13 +55,14 @@
             elem: '#date',
             range: '到',
             type: 'date',
-            value: "{:date('Y-m-d')} 到 {:date('Y-m-d')}"
+            value: "{:date('Y-m-d')} 到 {:date('Y-m-d')}",
+						trigger: 'click' //自动弹出控件的事件，采用click弹出
         });
         
         //第一个实例
         table.render({
             elem: '#table', //指定原始表格元素选择器（推荐id选择器）
-            height: 'full-260',
+            height: 'full-169',
             cellMinWidth: '80',
             id:'table',
             url: "{:url('goods')}",
@@ -83,7 +84,10 @@
         layui.form.on('submit(*)', function(data){
             type = data.elem.getAttribute('val');
             if(type != ""){
-                getTime(type,function(){
+                getTime(type, function(date){
+                    if(date){
+                        data.field.date = date;
+                    }
                     table.reload('table', {
                         where: data.field
                         ,page: {
@@ -123,7 +127,7 @@
                 if(res.status){
                     //设置时间，回调
                     $('#date').val(res.data.start  + " 到 " + res.data.end);
-                    calback();
+                    calback($('#date').val());
                 }else{
                     layer.msg(res.msg);
                 }

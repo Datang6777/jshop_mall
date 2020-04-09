@@ -3,8 +3,8 @@
 return [
     'default_image'         => 'https://b2c.jihainet.com/static/images/default.png',
     'upload_path'           => ROOT_PATH . 'public' . DIRECTORY_SEPARATOR . 'static' . DIRECTORY_SEPARATOR . 'uploads',
-    //上传文件限制5M
-    'upload_filesize'       => 5242880,
+    //上传文件限制500M
+    'upload_filesize'       => 524288000,
     //分页默认数量
     'page_limit'            => 10,
     //售后，评论等上传图片数量限制
@@ -23,10 +23,13 @@ return [
     'tocash_money_low'      => '100',       //最低提现金额
     'authorization_url'     => 'https://jshop.jihainet.com', //授权查询地址
     'product'               => 'Jshop-b2c标准版',//产品名称
-    'version'               => 'v2.0.5',    //版本号
+    'version'               => 'v2.2.0',    //版本号
     'image_storage'         => [
         'type' => 'Local'
     ],
-    'file_size'             => '104857600',//100M
+    'file_size'             => '1048576000',//1000M
     'area_list'             => ROOT_PATH . 'public/static/area.json',//地址库信息地址
+    'service_wechatpay_mch_id'  => '1498297512',            //微信支付服务商模式，服务商的商户号
+    'service_wechatpay_appid'   => 'wxd02de048830633c7',
+    'service_wechatpay_key'   => '11111111111234567890123456789012',
 ];

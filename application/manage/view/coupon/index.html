@@ -42,6 +42,7 @@
             height: 'full-220',
             url: '{:url("Coupon/index")}?promotion_id={$promotion_id}', //数据接口
             page: true, //开启分页
+            limit:'{:config("jshop.page_limit")}',
             cols: [[ //表头
                 {type:'numbers'},
                 {field: 'name', title: '优惠券名称',align:'center'},
@@ -58,7 +59,8 @@
         date.render({
             elem:'#date',
             type: 'datetime',
-            range: '到' //或 range: '~' 来自定义分割字符
+            range: '到', //或 range: '~' 来自定义分割字符
+						trigger: 'click' //自动弹出控件的事件，采用click弹出
         });
 
         form.on('submit(coupon-search)', function(data){
@@ -86,6 +88,31 @@
                         layer.msg(res.msg)
                     })
                 });
+            }else if(layEvent == 'change' ){
+                JsGet('<?php echo url("manage/index/tagSelectUser",array("type"=>"show"));  ?>', function (e) {
+                    layui.layer.open({
+                        type: 1,
+                        content: e,
+                        area: setpage(800,600),
+                        title: "选择会员",
+                        btn: ["完成", "取消"],
+                        yes: function (index, layero) {
+                            if (Object.getOwnPropertyNames(ids).length > 1) {
+                                layer.msg("最多只能选择1个");
+                                return false;
+                            }
+                            var user_id = Object.keys(ids)[0];
+                            JsPost('{:url("Coupon/bindUser")}', {
+                                user_id: user_id,
+                                coupon_code: data.coupon_code
+                            }, function (res) {
+                                layer.msg(res.msg);
+                                table.reload('coupon');
+                                layer.close(index);
+                            })
+                        }
+                    });
+                });
             }
         });
 
@@ -93,4 +120,5 @@
 </script>
 <script type="text/html" id="couponBar">
     <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+    <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="change">变更领取者</a>
 </script>

@@ -18,15 +18,15 @@ class Products extends Validate
         'goods_id'   => 'require|number',
         'costprice'  => 'float',
         'mktprice'   => 'float',
-        'price'      => 'float',
+        'price'      => 'require|float',
         'is_defalut' => 'in:1,2',
         'marketable' => 'in:1,2',
-        'stock'      => 'number|max:8|egt:0',
+        'stock'      => 'regex:/^-?[0-9]\d*$/',
         'sn'         => 'unique:products',
     ];
 
     protected $scene = [
-        'edit'  =>  ['goods_id','costprice','mktprice','price','is_defalut','marketable','stock','sn'=>'unique:products,sn^id'],
+        'edit' => ['goods_id', 'costprice', 'mktprice', 'price', 'is_defalut', 'marketable', 'stock', 'sn' => 'unique:products,sn^id'],
     ];
 
     public $message = [
@@ -34,13 +34,12 @@ class Products extends Validate
         'goods_id.number'  => '商品ID非法',
         'costprice'        => '请输入正确的成本价',
         'mktprice'         => '请输入正确的市场价',
-        'price'            => '请输入正确的销售价',
+        'price.float'      => '请输入正确的销售价',
+        'price.require'    => '销售价不能为空',
         'is_defalut.in'    => '是否默认商品超出范围',
         'marketable.in'    => '上下架状态超出范围',
-        'stock.number'     => '库存非法',
-        'stock.max'        => '库存最多只能输入8位数字',
+        'stock.regex'      => '库存非法',
         'sn.unique'        => '货品编号不能重复',
-        'stock.egt'        => '库存不能小于0',
     ];
 
 }

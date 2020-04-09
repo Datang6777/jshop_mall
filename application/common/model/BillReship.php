@@ -1,6 +1,7 @@
 <?php
 namespace app\common\model;
 
+use think\Db;
 use think\model\concern\SoftDelete;
 
 class BillReship extends Common
@@ -128,25 +129,47 @@ class BillReship extends Common
     {
         $result = [
             'status' => false,
-            'data' => [],
-            'msg' => ''
+            'data'   => [],
+            'msg'    => ''
         ];
 
         $where = [
             'reship_id' => $reship_id,
-            'status' => self::STATUS_SHIPPED
+            'status'    => self::STATUS_SHIPPED
         ];
-        $info = $this->where($where)->find();
-        if(!$info){
+        $info  = $this->where($where)->find();
+
+
+        if (!$info) {
             return error_code(13211);
         }
+        Db::startTrans();
+
         $data['status'] = self::STATUS_SUCCESS;
 
         $this->where($where)->data($data)->update();
+
+        //退货
+        $billReshipItemsModel = new BillReshipItems();
+        $items      = $billReshipItemsModel->where([[
+            'reship_id', '=', $info['reship_id']
+        ]])->select();
+        if (!$items->isEmpty()) {
+            $goodsModel = new Goods();
+            foreach ($items as $key => $val) {
+                $goodsRes = $goodsModel->changeStock($val['product_id'], 'return', $val['nums']);
+                if (!$goodsRes['status']) {
+                    return $goodsRes;
+                    Db::rollback();
+                }
+            }
+        }
+        Db::commit();
         $result['status'] = true;
-        $result['msg'] = '收货成功';
+        $result['msg']    = '收货成功';
         return $result;
     }
+
 
 
     /**
@@ -231,7 +254,7 @@ class BillReship extends Common
                 $list[$k]['status_name'] = config('params.bill_reship')['status'][$v['status']];
             }
             if($v['user_id']) {
-                $list[$k]['user_id'] = format_mobile(get_user_info($v['user_id']));
+                $list[$k]['user_id'] = get_user_info($v['user_id'], 'nickname');
             }
 
             if(isset($v['ctime']) && $v['ctime']) {
@@ -371,9 +394,9 @@ class BillReship extends Common
     public function exportValidate(&$params = [])
     {
         $result = [
-            'status' => false,
+            'status' => true,
             'data'   => [],
-            'msg'    => '参数丢失',
+            'msg'    => '验证成功',
         ];
         return $result;
     }

@@ -25,7 +25,6 @@ class Addons extends Common
     protected $updateTime = 'utime';
 
     const INSTALL_STATUS = 1;//已安装
-    const UNINSTALL_STATUS = 0;//未安装
     const STATUS_DISENABLE = 2; //禁用
 
     /**
@@ -100,7 +99,7 @@ class Addons extends Common
      */
     public function getAddonInfo($name)
     {
-        $info = $this->where(['name' => $name])->find();
+        $info = $this->where(['name' => $name])->cache('addon_'.$name)->find();
         if ($info) {
             return $info->toArray();
         } else {
@@ -116,7 +115,7 @@ class Addons extends Common
      */
     public function getSetting($name)
     {
-        $info = $this->where(['name' => $name])->find();
+        $info = $this->where(['name' => $name])->cache('addon_'.$name)->find();
         if($info){
             return json_decode($info['config'], true);
         }else{
@@ -135,7 +134,7 @@ class Addons extends Common
         if (!$params['name']) {
             return false;
         }
-        $addon = $this->where(['name' => $params['name']])->find();
+        $addon = $this->where(['name' => $params['name']])->cache('addon_'.$params['name'])->find();
         if (!$addon) {
             return false;
         }
@@ -143,9 +142,7 @@ class Addons extends Common
             'config' => json_encode($params['setting']),
         ];
 
-        $res   = $this->save($uData, [
-            'id' => $addon['id'],
-        ]);
+        $res   = $this->where(['id' => $addon['id']])->cache('addon_'.$params['name'])->update($uData);
         if ($res !== false) {
             return true;
         } else {

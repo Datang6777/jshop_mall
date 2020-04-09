@@ -76,11 +76,11 @@ class Carousel extends Manage
             return error_code(10002);
         }
         $carouselSeatModel = new CarouselSeat();
-        $position = $carouselSeatModel->where('id',$info['position_id'])->find();
+        $positionList = $carouselSeatModel->select();
         return $this->fetch('edit',[
-                'position'=>$position,
-                'info'=>$info,
-                'type'=>config('params.carousel')['type']
+                'positionList' => $positionList,
+                'info' => $info,
+                'type' => config('params.carousel')['type']
             ]);
     }
 
@@ -139,6 +139,10 @@ class Carousel extends Manage
     public function getArticle()
     {
         $this->view->engine->layout(false);
+        $article_id_key = Request::param('article_id_key');
+        $this->assign('article_id_key', $article_id_key);
+        $article_name_key = Request::param('article_name_key');
+        $this->assign('article_name_key', $article_name_key);
         return $this->fetch('getArticle');
     }
 

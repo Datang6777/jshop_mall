@@ -51,7 +51,7 @@ return [
     // 默认模块名
     'default_module'         => 'b2c',
     // 禁止访问模块
-    'deny_module_list'       => ['common','crontab','job'],
+    'deny_module_list'       => ['common', 'job'],
     // 默认控制器名
     'default_controller'     => 'Index',
     // 默认操作名
@@ -116,4 +116,7 @@ return [
     // 异常处理handle类 留空使用 \think\exception\Handle
     'exception_handle'       => '',
     'rename_manage'          => false,//后台是否重名了，后台重命名需要开启
+    'route_check_cache'      => true,//路由缓存
+    'validate_token'         => false,//是否开启token验证预防CSRF攻击
+
 ];

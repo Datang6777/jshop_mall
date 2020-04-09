@@ -22,7 +22,6 @@
     <span class="layui-breadcrumb" style="margin-bottom:0;padding-bottom:0;" id="parent_url"></span>
     <table id="areaTable" lay-filter="areaTable"></table>
 </div>
-
 <script>
     var table = '';
     layui.use(['form','table'], function(){
@@ -39,6 +38,7 @@
             id:'areaTable',
             url: "{:url('area/getlist')}",
             cols: [[
+                {field:'id', width:90, title:'ID', align:'center'},
                 {field: 'name', title: '地区名称',align:'center',templet:function (data) {
                     var indent = getIndent(data.depth);
                     if(data.child=='true'){
@@ -47,13 +47,14 @@
                         return indent+data.name;
                     }
                 }},
-                {field: 'type', title: '添加子地区',align:'center',templet:function (data) {
+                {field: 'postal_code', title: '邮编',align:'center'},
+                {field: 'type', title: '添加子地区', width: 110,align:'center',templet:function (data) {
                     return '<button class="layui-btn  layui-btn-xs add-table-area" data-id="' + data.id + '"><i class="layui-icon"></i>添加</button>';
                 }},
-                {field: 'file_name', title: '编辑',align:'center',templet:function (data) {
+                {field: 'file_name', title: '编辑', width: 90,align:'center',templet:function (data) {
                     return '<button class="layui-btn layui-btn-xs edit-table-area" data-id="' + data.id + '">编辑</button>';
                 }},
-                {field: 'status', title: '删除',align:'center',templet:function (data) {
+                {field: 'status', title: '删除', width: 90, align:'center',templet:function (data) {
                     return '<button class="layui-btn layui-btn-sm layui-btn-danger layui-btn-xs delete-area"  data-id="' + data.id + '">删除</button>';
                 }}
             ]],
@@ -81,12 +82,18 @@
             window_box = layer.open({
                 type: 1,
                 title: '添加',
-                area: ['420px', '250px'], //宽高
+                area: setpage(420,350), //宽高
                 content: '<div style="padding:20px;">\n' +
                 '    <div class="layui-form-item">\n' +
-                '        <label class="layui-form-label">地区名称：</label>\n' +
+                '        <label class="layui-form-label"><i class="required-color">*</i>地区名称：</label>\n' +
                 '        <div class="layui-input-block">\n' +
                 '          <input type="text" id="area_name" autocomplete="off" placeholder="请输入地区名称" class="layui-input">\n' +
+                '        </div>\n' +
+                '    </div>\n' +
+                '    <div class="layui-form-item">\n' +
+                '        <label class="layui-form-label"><i class="required-color">*</i>地区邮编：</label>\n' +
+                '        <div class="layui-input-block">\n' +
+                '          <input type="text" id="area_name" autocomplete="off" placeholder="请输入地区邮编" class="layui-input">\n' +
                 '        </div>\n' +
                 '    </div>\n' +
                 '    <div class="layui-form-item">\n' +
@@ -115,12 +122,18 @@
                         window_box = layer.open({
                             type: 1,
                             title: '编辑',
-                            area: ['420px', '250px'],
+                            area: setpage(420,350),
                             content: '<div style="padding:20px;">\n' +
                             '    <div class="layui-form-item">\n' +
-                            '        <label class="layui-form-label">地区名称：</label>\n' +
+                            '        <label class="layui-form-label"><i class="required-color">*</i>地区名称：</label>\n' +
                             '        <div class="layui-input-block">\n' +
                             '          <input type="text" id="area_name" autocomplete="off" value="'+e.data.name+'" placeholder="请输入地区名称" class="layui-input">\n' +
+                            '        </div>\n' +
+                            '    </div>\n' +
+                            '    <div class="layui-form-item">\n' +
+                            '        <label class="layui-form-label"><i class="required-color">*</i>地区邮编：</label>\n' +
+                            '        <div class="layui-input-block">\n' +
+                            '          <input type="text" id="postal_code" autocomplete="off" value="'+e.data.postal_code+'" placeholder="请输入地区邮编" class="layui-input">\n' +
                             '        </div>\n' +
                             '    </div>\n' +
                             '    <div class="layui-form-item">\n' +
@@ -215,10 +228,10 @@
                     if(e.status){
                         if(e.data.length > 0){
                             var a = '<div class="layui-input-inline" id="city_box">' +
-                                '<select name="city" lay-filter="city" id="city">' +
-                                '<option value="0">请选择市</option>' +
-                                '</select>' +
-                                '</div>';
+                                    '<select name="city" lay-filter="city" id="city">' +
+                                    '<option value="0">请选择市</option>' +
+                                    '</select>' +
+                                    '</div>';
                             $("#province_box").after(a);
                             for(var i = 0; i < e.data.length; i ++){
                                 var html = '<option value="'+e.data[i].id+'">'+e.data[i].name+'</option>';
@@ -248,10 +261,10 @@
                     if(e.status){
                         if(e.data.length > 0){
                             var a = '<div class="layui-input-inline" id="area_box">' +
-                                '<select name="area" lay-filter="area" id="area">' +
-                                '<option value="0">请选择县/区</option>' +
-                                '</select>' +
-                                '</div>';
+                                    '<select name="area" lay-filter="area" id="area">' +
+                                    '<option value="0">请选择县/区</option>' +
+                                    '</select>' +
+                                    '</div>';
                             $("#city_box").after(a);
                             for(var i = 0; i < e.data.length; i ++){
                                 var html = '<option value="'+e.data[i].id+'">'+e.data[i].name+'</option>';
@@ -281,10 +294,10 @@
                     if(e.status){
                         if(e.data.length > 0){
                             var a = '<div class="layui-input-inline" id="four_box">' +
-                                '<select name="four" lay-filter="four" id="four">' +
-                                '<option value="0">请选择地区</option>' +
-                                '</select>' +
-                                '</div>';
+                                    '<select name="four" lay-filter="four" id="four">' +
+                                    '<option value="0">请选择地区</option>' +
+                                    '</select>' +
+                                    '</div>';
                             $("#area_box").after(a);
                             for(var i = 0; i < e.data.length; i ++){
                                 var html = '<option value="'+e.data[i].id+'">'+e.data[i].name+'</option>';
@@ -372,12 +385,18 @@
             window_box = layer.open({
                 type: 1,
                 title: '添加',
-                area: ['420px', '250px'], //宽高
+                area: setpage(420,350), //宽高
                 content: '<div style="padding:20px;">\n' +
                 '    <div class="layui-form-item">\n' +
-                '        <label class="layui-form-label">地区名称：</label>\n' +
+                '        <label class="layui-form-label"><i class="required-color">*</i>地区名称：</label>\n' +
                 '        <div class="layui-input-block">\n' +
                 '          <input type="text" id="area_name" autocomplete="off" placeholder="请输入地区名称" class="layui-input">\n' +
+                '        </div>\n' +
+                '    </div>\n' +
+                '    <div class="layui-form-item">\n' +
+                '        <label class="layui-form-label"><i class="required-color">*</i>地区邮编：</label>\n' +
+                '        <div class="layui-input-block">\n' +
+                '          <input type="text" id="postal_code" autocomplete="off" placeholder="请输入地区邮编" class="layui-input">\n' +
                 '        </div>\n' +
                 '    </div>\n' +
                 '    <div class="layui-form-item">\n' +
@@ -396,14 +415,19 @@
             if($("#area_name").val().length > 0){
                 JsPost('{:url("area/add")}',{
                     'name': $("#area_name").val(),
+                    'postal_code': $("#postal_code").val(),
                     'parent_id': action_id,
                     'depth': depth,
                     'sort': $("#area_sort").val()
                 },function(e){
-                    layer.close(window_box);
-                    layer.msg(e.msg, {time: 1300}, function(){
-                        location.reload();
-                    });
+                    if(e.status) {
+                        layer.msg(e.msg, {time: 1300}, function(){
+                            layer.close(window_box);
+                            location.reload();
+                        });
+                    }else{
+                        layer.msg(e.msg);
+                    }
                 });
             }else{
                 layer.msg('请填写地区名称');
@@ -442,12 +466,18 @@
                         window_box = layer.open({
                             type: 1,
                             title: '编辑',
-                            area: ['420px', '250px'],
+                            area: setpage(420,350),
                             content: '<div style="padding:20px;">\n' +
                             '    <div class="layui-form-item">\n' +
                             '        <label class="layui-form-label">地区名称：</label>\n' +
                             '        <div class="layui-input-block">\n' +
                             '          <input type="text" id="area_name" autocomplete="off" value="'+e.data.name+'" placeholder="请输入地区名称" class="layui-input">\n' +
+                            '        </div>\n' +
+                            '    </div>\n' +
+                            '    <div class="layui-form-item">\n' +
+                            '        <label class="layui-form-label">地区邮编：</label>\n' +
+                            '        <div class="layui-input-block">\n' +
+                            '          <input type="text" id="postal_code" autocomplete="off" value="'+e.data.postal_code+'" placeholder="请输入地区邮编" class="layui-input">\n' +
                             '        </div>\n' +
                             '    </div>\n' +
                             '    <div class="layui-form-item">\n' +
@@ -476,15 +506,20 @@
                     type: 'post',
                     data: {
                         'name': $("#area_name").val(),
+                        'postal_code': $("#postal_code").val(),
                         'id': action_id,
                         'sort': $("#area_sort").val()
                     },
                     dataType: 'json',
                     success: function(e){
-                        layer.close(window_box);
-                        layer.msg(e.msg, {time: 1300}, function(){
-                            location.reload();
-                        });
+                        if (e.status) {
+                            layer.msg(e.msg, {time: 1300}, function(){
+                                layer.close(window_box);
+                                location.reload();
+                            });
+                        } else {
+                            layer.msg(e.msg);
+                        }
                     }
                 })
             }else{
@@ -532,9 +567,9 @@
         });
         //生成地区缓存文件
         $(document).on('click', '.generate-cache', function(){
-           JsGet('{:url("area/generateCache")}', function (res) {
-               layer.msg(res.msg);
-           });
+            JsGet('{:url("area/generateCache")}', function (res) {
+                layer.msg(res.msg);
+            });
         });
 
     });

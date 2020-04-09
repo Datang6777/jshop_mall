@@ -2,19 +2,16 @@
     .layui-btn .layui-icon {
         margin-right: 0;
     }
-
     @media screen and (max-width: 500px) {
         .layui-table-view {
             width: 100% !important;
             overflow-x: scroll !important;
             left: 0 !important;
         }
-
         .layui-table-box {
             width: 600px !important;
             box-sizing: border-box;
         }
-
     }
 </style>
 <form class="layui-form seller-form" action="">
@@ -34,15 +31,15 @@
     layui.use(['form', 'layedit', 'laydate', 'table'], function () {
         table = layui.table.render({
             elem: '#typeTable',
-            height: 'full-220',
+            height: 'full-99',
             cellMinWidth: '80',
             page: 'true',
             limit: '20',
             url: "{:url('GoodsParams/index')}?_ajax=1",
             id: 'typeTable',
             cols: [[
-                { type: 'numbers' },
-                { field: 'name', width: 150, title: '名称' },
+                {field:'id', width:90, title:'ID', align: 'center'},
+                { field: 'name', width: 150, title: '名称', align: 'center'},
                 {
                     field: 'type', width: 150, title: '类型', templet: function (data) {
                         if (data.type == 'text') {
@@ -52,16 +49,16 @@
                         } else if (data.type == 'checkbox') {
                             return '复选框';
                         }
-                    }
+                    }, align: 'center'
                 },
-                { field: 'value', width: 150, title: '参数' },
+                { field: 'value', minWidth: 150, title: '参数', align: 'center' },
                 {
                     field: 'operating', title: '操作', templet: function (data) {
                         var html = '';
                         var html = '<a  class="layui-btn layui-btn-xs edit-class" data-id="' + data.id + '">编辑</a>';
                         html += '<a class="layui-btn layui-btn-danger layui-btn-xs del-class" data-name="' + data.name + '" data-id="' + data.id + '">删除</a>';
                         return html;
-                    }
+                    }, align: 'center', width: 140
                 }
             ]]
         });
@@ -75,97 +72,41 @@
             return false; //阻止表单跳转。如果需要表单跳转，去掉这段即可。
         });
 
-
         //添加分类
         $(document).on('click', '.add-class', function () {
             JsGet('{:url("GoodsParams/add")}', function (e) {
-                window_box = layer.open({
-                    type: 1,
-                    title: '添加参数',
-                    btn: ['保存', '取消'],
-                    area: ['450px', '350px'], //宽高
-                    content: e,
-                    yes: function () {
-                        var name = $("#name").val();
-                        var type = $("#type").val();
-                        var value = $("#value").val();
-                        var __Jshop_Token__ = $(".Jshop_Token:last").val();
+                if(e.status){
+                    window_box = layer.open({
+                        type: 1,
+                        title: '添加参数',
+                        btn: ['保存', '取消'],
+                        area: setpage(450,350), //宽高
+                        content: e.data,
+                        yes: function () {
+                            var name = $("#name").val();
+                            var type = $("#type").val();
+                            var value = $("#value").val();
+                            var __Jshop_Token__ = $(".Jshop_Token:last").val();
 
-                        var error = false;
-                        if (name.length > 6 || name.length < 1) {
-                            error = true;
-                            layer.msg('参数名称在1-6个字符之间', { time: 1300 });
-                            return false;
-                        }
+                            var error = false;
+                            if (name.length > 6 || name.length < 1) {
+                                error = true;
+                                layer.msg('参数名称在1-6个字符之间', { time: 1300 });
+                                return false;
+                            }
 
-                        if (type != 'text' && Trim(value) == '') {
-                            error = true;
-                            layer.msg('请填写参数选项', { time: 1300 });
-                            return false;
-                        }
-                        if (!error) {
-                            JsPost('{:url("GoodsParams/add")}', {
-                                'name': name,
-                                'type': type,
-                                'value': value,
-                                __Jshop_Token__:__Jshop_Token__
-                            }, function (e) {
-                                if (e.status === true) {
-                                    layer.close(window_box);
-                                    layer.msg(e.msg, { time: 1300 }, function () {
-                                        table.reload('typeTable');
-                                    });
-                                } else {
-                                    layer.msg(e.msg, { time: 1300 });
-                                }
-                            });
-                        }
-                    }
-                });
-            });
-            return false;
-        });
-
-        //编辑参数
-        $(document).on('click', '.edit-class', function () {
-            var id = $(this).attr('data-id');
-            JsGet('{:url("GoodsParams/edit")}?id=' + id, function (e) {
-                window_box = layer.open({
-                    type: 1,
-                    title: '编辑参数',
-                    area: ['450px', '350px'], //宽高
-                    content: e,
-                    btn: ['保存', '取消'],
-                    yes: function (d) {
-                        var name = $("#name").val();
-                        var type = $("#type").val();
-                        var value = $("#value").val();
-                        var id = $("#params_id").val();
-                        var __Jshop_Token__ = $(".Jshop_Token:last").val();
-
-                        var error = false;
-                        if (name.length > 6 || name.length < 1) {
-                            error = true;
-                            layer.msg('参数名称在1-6个字符之间', { time: 1300 });
-                            return false;
-                        }
-                        if (!id || id == '') {
-                            layer.msg('关键参数丢失', { time: 1300 });
-                            return false;
-                        }
-                        if (!error) {
-                            $.ajax({
-                                url: '{:url("GoodsParams/edit")}',
-                                type: 'post',
-                                data: {
+                            if (type != 'text' && Trim(value) == '') {
+                                error = true;
+                                layer.msg('请填写参数选项', { time: 1300 });
+                                return false;
+                            }
+                            if (!error) {
+                                JsPost('{:url("GoodsParams/add")}', {
                                     'name': name,
                                     'type': type,
                                     'value': value,
-                                    'id':id,
                                     __Jshop_Token__:__Jshop_Token__
-                                },
-                                dataType: 'json',
-                                success: function (e) {
+                                }, function (e) {
                                     if (e.status === true) {
                                         layer.close(window_box);
                                         layer.msg(e.msg, { time: 1300 }, function () {
@@ -174,11 +115,68 @@
                                     } else {
                                         layer.msg(e.msg, { time: 1300 });
                                     }
-                                }
-                            })
+                                });
+                            }
                         }
-                    }
-                });
+                    });
+                }else{
+                    layer.msg(e.msg);
+                }
+            });
+            return false;
+        });
+
+        //编辑参数
+        $(document).on('click', '.edit-class', function () {
+            var id = $(this).attr('data-id');
+            JsGet('{:url("GoodsParams/edit")}?id=' + id, function (e) {
+                if(e.status){
+                    window_box = layer.open({
+                        type: 1,
+                        title: '编辑参数',
+                        area: setpage(450,350), //宽高
+                        content: e.data,
+                        btn: ['保存', '取消'],
+                        yes: function (d) {
+                            var name = $("#name").val();
+                            var type = $("#type").val();
+                            var value = $("#value").val();
+                            var id = $("#params_id").val();
+                            var __Jshop_Token__ = $(".Jshop_Token:last").val();
+
+                            var error = false;
+                            if (name.length > 6 || name.length < 1) {
+                                error = true;
+                                layer.msg('参数名称在1-6个字符之间', { time: 1300 });
+                                return false;
+                            }
+                            if (!id || id == '') {
+                                layer.msg('关键参数丢失', { time: 1300 });
+                                return false;
+                            }
+                            if (!error) {
+                                JsPost('{:url("GoodsParams/edit")}', {
+                                    'name': name,
+                                    'type': type,
+                                    'value': value,
+                                    'id':id,
+                                    __Jshop_Token__:__Jshop_Token__
+                                }, function(e){
+                                    if (e.status === true) {
+                                        layer.close(window_box);
+                                        layer.msg(e.msg, { time: 1300 }, function () {
+                                            table.reload('typeTable');
+                                        });
+                                    } else {
+                                        layer.msg(e.msg, { time: 1300 });
+                                    }
+                                });
+                            }
+                        }
+                    });
+                }else{
+                    layer.msg(e.msg);
+                }
             });
         });
 
@@ -195,19 +193,11 @@
 
         //删除操作
         function delClass(id) {
-            $.ajax({
-                url: '{:url("GoodsParams/del")}',
-                type: 'post',
-                data: {
-                    'id': id
-                },
-                success: function (e) {
-                    layer.msg(e.msg, { time: 1300 }, function () {
-                        table.reload('typeTable');
-                    });
-                }
+            JsPost('{:url("GoodsParams/del")}', {'id': id}, function(e){
+                layer.msg(e.msg, { time: 1300 }, function () {
+                    table.reload('typeTable');
+                });
             });
         }
-
     });
 </script>

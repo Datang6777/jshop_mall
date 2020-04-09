@@ -1,12 +1,13 @@
 <?php
-/**
- * 接口路由
- */
 namespace app\api\controller;
-
 use app\common\controller\Api;
 use app\common\model\UserToken;
 
+/**
+ * 接口路由
+ * Class Index
+ * @package app\api\controller
+ */
 class Index extends Api
 {
     protected $loginAction = [];
@@ -14,6 +15,7 @@ class Index extends Api
 
     public function index()
     {
+
         //解决跨域问题
 /*      header('Access-Control-Allow-Origin:*');//允许所有来源访问
         header('Access-Control-Allow-Method:POST,GET');//允许访问的方式*/
@@ -22,9 +24,9 @@ class Index extends Api
             header("Access-Control-Allow-Origin: *");
             header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization");
             header('Access-Control-Allow-Methods: GET, POST, PUT,DELETE,OPTIONS,PATCH');
-           exit;
+            exit;
         }
-        header("Access-Control-Allow-Origin: *");
+        header("Access-Control-Allow-Origin:*");
         header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type, Accept, Authorization");
         header('Access-Control-Allow-Methods: GET, POST, PUT,DELETE,OPTIONS,PATCH');
 

@@ -17,9 +17,9 @@
 <form class="layui-form seller-form">
     <div class="layui-form-item">
         <div class="layui-inline">
-            <label class="layui-form-label">提货单号：</label>
+            <label class="layui-form-label">提货码：</label>
             <div class="layui-input-inline seller-inline-3">
-                <input type="text" name="id" id="id" placeholder="提货单号" autocomplete="off" class="layui-input">
+                <input type="text" name="id" id="id" placeholder="提货码" autocomplete="off" class="layui-input">
             </div>
         </div>
         <div class="layui-inline">
@@ -57,8 +57,6 @@
                 </select>
             </div>
         </div>
-    </div>
-    <div class="layui-form-item">
         <div class="layui-inline">
             <label class="layui-form-label">提货人名：</label>
             <div class="layui-input-inline seller-inline-3">
@@ -83,7 +81,7 @@
 </form>
 
 <div class="table-body">
-    <table class="layui-table" id="ladingTable" lay-filter="ladingTable"></table>
+    <table class="" id="ladingTable" lay-filter="ladingTable"></table>
 </div>
 <div id="exportLading" style="display: none;">
     <form class="layui-form export-form" action="">
@@ -111,11 +109,12 @@
         layui.laydate.render({
             elem: '#date',
             range: '到',
-            format: 'yyyy-MM-dd'
+            format: 'yyyy-MM-dd',
+						trigger: 'click' //自动弹出控件的事件，采用click弹出
         });
         table.render({
             elem: '#ladingTable',
-            height: 'full-250',
+            height: 'full-139',
             cellMinWidth: '80',
             page: 'true',
             limit: '20',
@@ -127,15 +126,14 @@
             },
             cols: [[ //标题栏
                 { type: 'checkbox' },
-                { type: 'numbers' },
                 { field: 'id', title: '提货单号', align: 'center', width: 150 },
                 { field: 'order_id', title: '订单号', align: 'center', width: 150 },
-                { field: 'store_name', title: '提货门店', align: 'center', width: 150, sort: true },
-                { field: 'name', title: '提货人名', align: 'center' },
-                { field: 'mobile', title: '提货电话', align: 'center' },
-                { field: 'status_name', title: '提货状态', align: 'center', sort: true },
-                { field: 'ctime', title: '下单时间', align: 'center', sort: true },
-                { field: 'option', title: '操作', align: 'center', toolbar: '#ladingBar' }
+                { field: 'store_name', title: '提货门店', align: 'center', minWidth: 150, sort: true },
+                { field: 'name', title: '提货人名', width: 110, align: 'center' },
+                { field: 'mobile', title: '提货电话', width: 140, align: 'center' },
+                { field: 'status_name', title: '提货状态', width: 110, align: 'center', sort: true },
+                { field: 'ctime', title: '下单时间', width: 170, align: 'center', sort: true },
+                { field: 'option', title: '操作', width: 165, align: 'center', toolbar: '#ladingBar' }
             ]]
         });
 
@@ -155,20 +153,13 @@
 
             if (layEvent === 'info') {
                 //获取详情
-                $.ajax({
-                    url: "{:url('manage/billLading/info')}",
-                    type: 'get',
-                    data: {
-                        'id': data.id
-                    },
-                    success: function (e) {
-                        layer.open({
-                            type: 1,
-                            title: '详情',
-                            area: ['650px', '310px'], //宽高
-                            content: e
-                        });
-                    }
+                JsGet("{:url('manage/billLading/info')}?id="+data.id, function(e){
+                    layer.open({
+                        type: 1,
+                        title: '详情',
+                        area: setpage(650,310), //宽高
+                        content: e
+                    });
                 });
             } else if (layEvent === 'write') {
                 //核销提货单
@@ -178,18 +169,10 @@
                     layer.confirm('确认核销该提货单吗？', {
                         btn: ['确认', '取消'] //按钮
                     }, function () {
-                        $.ajax({
-                            url: "{:url('manage/BillLading/write')}",
-                            data: {
-                                'id': data.id
-                            },
-                            type: 'post',
-                            dataType: 'json',
-                            success: function (e) {
-                                layer.msg(e.msg, { time: 1500 }, function () {
-                                    table.reload('ladingTable');
-                                });
-                            }
+                        JsPost("{:url('manage/BillLading/write')}", {'id': data.id}, function(e){
+                            layer.msg(e.msg, { time: 1500 }, function () {
+                                table.reload('ladingTable');
+                            });
                         });
                     }, function () {
 
@@ -212,20 +195,14 @@
         //修改保存
         $(document).on('click', '.editBtn', function () {
             var data = $('#edit-form').serialize();
-            $.ajax({
-                url: '{:url("manage/BillLading/info")}',
-                data: data,
-                type: 'post',
-                dataType: 'json',
-                success: function (e) {
-                    if (e.status) {
-                        layer.msg(e.msg, { time: 1500 }, function () {
-                            layer.closeAll();
-                            table.reload('ladingTable');
-                        });
-                    } else {
-                        layer.msg(e.msg);
-                    }
+            JsPost('{:url("manage/BillLading/info")}', data, function(e){
+                if (e.status) {
+                    layer.msg(e.msg, { time: 1500 }, function () {
+                        layer.closeAll();
+                        table.reload('ladingTable');
+                    });
+                } else {
+                    layer.msg(e.msg);
                 }
             });
             return false;
@@ -236,7 +213,7 @@
             layer.open({
                 type: 1,
                 title: '提货单导出',
-                area: ['400px', '290px'], //宽高
+                area: setpage(400,290), //宽高
                 btn: ['确定', '取消'],
                 content: $("#exportLading").html(),
                 yes: function () {

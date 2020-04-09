@@ -43,7 +43,7 @@ class Ship extends Common
      */
     private function getExp($firstunit, $continueunit, $firstunit_price, $continueunit_price)
     {
-        $exp = "$firstunit_price + (ceil((w-$firstunit)/$continueunit) * $continueunit_price)";
+        $exp = "$firstunit_price + (ceil(abs(w-$firstunit)/$continueunit) * $continueunit_price)";
         return $exp;
     }
 
@@ -146,6 +146,8 @@ class Ship extends Common
      */
     public function getShipCost($area_id = 0, $weight = 0, $totalmoney = 0)
     {
+
+
         $postfee = '0.00';
         //先判断是否子地区满足条件
         $def = $this->where([
@@ -162,6 +164,7 @@ class Ship extends Common
                 return $postfee;
             }
         }
+
         if ($def['free_postage'] == self::FREE_POSTAGE_YES) {
             return $postfee;
         }
@@ -173,9 +176,10 @@ class Ship extends Common
                     $val['goodsmoney'] = $def['goodsmoney'];
                     $area              = explode(',', $val['area']);
                     if (in_array($area_id, $area)) {
-                        $isIn    = true;
-                        $total   = self::calculate_fee($val, $weight, $totalmoney);
-                        $postfee = getMoney($total);
+                        $isIn             = true;
+                        $val['firstunit'] = $def['firstunit'];
+                        $total            = self::calculate_fee($val, $weight, $totalmoney);
+                        $postfee          = getMoney($total);
                         break;
                     }
                 }
@@ -235,12 +239,12 @@ class Ship extends Common
      */
     static function calculate_fee($ship, $weight, $totalmoney = 0)
     {
-		//满多少免运费
-		if (isset($ship['goodsmoney']) && $ship['goodsmoney'] > 0 && $totalmoney > $ship['goodsmoney']) {
-			return 0;
-		}
-        if ($weight > $ship['firstunit']) {
-           
+        //满多少免运费
+        if (isset($ship['goodsmoney']) && $ship['goodsmoney'] > 0 && $totalmoney >= $ship['goodsmoney']) {
+            return 0;
+        }
+
+        if ($weight && $weight > $ship['firstunit']) {
             $shipmoney = 0;
             $tmp_exp   = trim(str_replace('w', $weight, $ship['exp']));
             eval("\$shipmoney = $tmp_exp;");

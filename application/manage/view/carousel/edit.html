@@ -6,7 +6,9 @@
         <label class="layui-form-label"><i class="required-color">*</i>广告位：</label>
         <div class="layui-input-inline seller-inline-3">
             <select name="position_id">
-                <option value="{$position.id}">{$position.name}</option>
+                {foreach $positionList as $v}
+                <option value="{$v.id}" {if $v.id == $info.position_id}selected{/if}>{$v.name}</option>
+                {/foreach}
             </select>
         </div>
     </div>
@@ -283,7 +285,7 @@
             window.box = layer.open({
                 type: 1,
                 content: e,
-                area: ['700px', '450px'],
+                area: setpage(700,450),
                 title:'商品列表'
             });
         });
@@ -295,7 +297,7 @@
             window.box = layer.open({
                 type: 1,
                 content: e,
-                area: ['700px', '450px'],
+                area: setpage(700,450),
                 title:'文章列表'
             });
         });
@@ -307,7 +309,7 @@
             window.box = layer.open({
                 type: 1,
                 content: e,
-                area: ['700px', '450px'],
+                area: setpage(700,450),
                 title: '文章分类列表'
             })
         })
@@ -319,7 +321,7 @@
             window.box = layer.open({
                 type: 1,
                 content: e,
-                area: ['700px', '450px'],
+                area: setpage(700,450),
                 title:'表单列表'
             });
         });

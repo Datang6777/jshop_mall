@@ -5,6 +5,7 @@
 namespace org;
 use think\facade\Cache;
 use think\facade\Log;
+use think\facade\Request;
 
 class Wx
 {
@@ -141,12 +142,15 @@ class Wx
      * @param $access_token
      * @param string $page
      * @param string $invite
-     * @param string $goods
+     * @param int $type
+     * @param string $id
+     * @param string $group_id
+     * @param string $team_id
      * @param array $style
      * @param string $wx_appid
      * @return array
      */
-    public function getParameterQRCode($access_token, $page = 'pages/index/index', $invite = '', $goods = '', $style = [], $wx_appid = '')
+    public function getParameterQRCode($access_token, $page = 'pages/share/jump', $invite = '', $type = 1, $id = '', $group_id = '', $team_id = '', $style = [], $wx_appid = '')
     {
         $return = [
             'status' => false,
@@ -155,7 +159,7 @@ class Wx
         ];
 
         $styles = implode("-", $style);
-        $filename = "static/qrcode/wechat/".md5($page.$invite.$goods.$wx_appid.$styles).".jpg";
+        $filename = "static/qrcode/wechat/".md5($page.$invite.$type.$id.$group_id.$team_id.$wx_appid.$styles).".jpg";
 
         if(file_exists($filename))
         {
@@ -169,7 +173,81 @@ class Wx
             //没有去官方请求生成
             $curl = new Curl();
             $url = 'https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token='.$access_token;
-            $scene = 'invite='.$invite.'&id='.$goods;
+            if($type == 1)
+            {
+                //商品详情页
+                if($invite)
+                {
+                    $scene = share_parameter_encode('type=2&invite='.$invite.'&id='.$id);
+                }
+                else
+                {
+                    $scene = share_parameter_encode('type=2&id='.$id);
+                }
+            }
+            else if($type == 2)
+            {
+                //首页
+                if($invite)
+                {
+                    $scene = share_parameter_encode('type=3&invite='.$invite);
+                }
+                else
+                {
+                    $scene = share_parameter_encode('type=3');
+                }
+            }
+            else if($type == 3)
+            {
+                //拼团
+                if($invite)
+                {
+                    if($team_id)
+                    {
+                        $scene = share_parameter_encode('type=5&invite='.$invite.'&id='.$id.'&team_id='.$team_id);
+                    }
+                    else
+                    {
+                        $scene = share_parameter_encode('type=5&invite='.$invite.'&id='.$id);
+                    }
+                }
+                else
+                {
+                    if($team_id)
+                    {
+                        $scene = share_parameter_encode('type=5&id='.$id.'&team_id='.$team_id);
+                    }
+                    else
+                    {
+                        $scene = share_parameter_encode('type=5&id='.$id);
+                    }
+                }
+            }
+            else if($type == 4)
+            {
+                //店铺首页
+                if($invite)
+                {
+                    $scene = share_parameter_encode('type=9&invite='.$invite.'&id='.$id);
+                }
+                else
+                {
+                    $scene = share_parameter_encode('type=9&id='.$id);
+                }
+            }
+            else
+            {
+                //默认首页
+                if($invite)
+                {
+                    $scene = share_parameter_encode('type=3&invite='.$invite);
+                }
+                else
+                {
+                    $scene = share_parameter_encode('type=3');
+                }
+            }
+
             $data = [
                 'scene' => $scene,
                 'page' => $page
@@ -218,6 +296,78 @@ class Wx
                 $return['status'] = true;
                 $return['msg'] = '二维码获取成功';
                 $return['data'] = $filename;
+            }
+        }
+
+        return $return;
+    }
+    /**
+     * 小程序二维码，和业务没关系
+     */
+    public function getQRCode($scene,$page = 'pages/share/jump')
+    {
+        $return = [
+            'status' => false,
+            'msg' => '',
+            'data' => ''
+        ];
+
+
+        $filename = "static/qrcode/wechat/".md5($scene).".jpg";
+
+        if(file_exists($filename))
+        {
+            //有这个二维码了
+            $return['status'] = true;
+            $return['msg'] = '二维码获取成功';
+            $return['data'] = Request::root(true).'/'.$filename;
+        }
+        else
+        {
+            //没有去官方请求生成
+            $wx_appid = getSetting('wx_appid');
+            $wx_app_secret = getSetting('wx_app_secret');
+            $accessToken = $this->getAccessToken($wx_appid, $wx_app_secret);
+            if(!$accessToken)
+            {
+                $return['msg'] = "accessToken获取失败";
+                return $return;
+            }
+            $curl = new Curl();
+            $url = 'https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token='.$accessToken;
+
+            $data = [
+                'scene' => $scene,
+                'page' => $page
+            ];
+            $data = json_encode($data);
+            $res = $curl->post($url, $data);
+            $flag = json_decode($res, true);
+            if($flag && $flag['errcode'] == 41030)
+            {
+                $return['msg'] = '后台小程序配置的APPID和APPSECRET对应的小程序未发布上线,或者page没有发布，无法生成海报';
+                return $return;
+            }
+            elseif($flag && $flag['errcode'] == 40001)
+            {
+                $return['msg'] = '微信小程序access_token已过期，无法为你生成海报';
+                return $return;
+            }
+            elseif($flag && isset($flag['errcode']))
+            {
+                $return['msg'] = $flag['errcode'].':'.$flag['errmsg'];
+                return $return;
+            }
+
+            $file = fopen($filename, "w");//打开文件准备写入
+            fwrite($file, $res);//写入
+            fclose($file);//关闭
+
+            if(file_exists($filename))
+            {
+                $return['status'] = true;
+                $return['msg'] = '二维码获取成功';
+                $return['data'] = Request::root(true).'/'.$filename;
             }
         }
 

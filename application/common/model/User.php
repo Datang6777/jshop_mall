@@ -1,7 +1,6 @@
 <?php
 namespace app\common\model;
 
-use addons\pintuan\model\PintuanRule;
 use org\QRcode;
 use org\Wx;
 use think\model\concern\SoftDelete;
@@ -28,11 +27,11 @@ class User extends Common
 
     protected $rule = [
         //'username' => 'length:6,20|alphaDash',
-        'mobile'   => ['regex' => '^1[3|4|5|7|8][0-9]\d{4,8}$'],
+        'mobile'   => ['regex' => '^1[3|4|5|6|7|8|9][0-9]\d{4,8}$'],
         'sex'      => 'in:1,2,3',
         'nickname' => 'length:2,50',
         'password' => 'length:6,20',
-        'p_mobile' => ['regex' => '^1[3|4|5|7|8][0-9]\d{4,8}$'],
+        'p_mobile' => ['regex' => '^1[3|4|5|6|7|8|9][0-9]\d{4,8}$'],
     ];
     protected $msg = [
         //'username.length' => '用户名长度6~20位',
@@ -44,69 +43,6 @@ class User extends Common
         'p_mobile' => '邀请人栏请输入一个合法的手机号码',
     ];
 
-    /**
-     * (废弃)注册添加用户,此接口废弃掉了，建议使用smsLogin方法
-     * @param array $data 新建用户的数据数组
-     * @param int $loginType 登陆类型，1网页登陆，存session，2接口登陆，返回token
-     *
-     */
-//    public function toAdd($data, $loginType=1)
-//    {
-//        $result = array(
-//            'status' => false,
-//            'data' => '',
-//            'msg' => ''
-//        );
-//
-//        //校验数据
-//        $validate = new Validate($this->rule, $this->msg);
-//        if(!$validate->check($data)){
-//            $result['msg'] = $validate->getError();
-//            return $result;
-//        }
-//
-//        //校验短信验证码
-//        $smsModel = new Sms();
-//        if(!$smsModel->check($data['mobile'], $data['code'], 'reg')){
-//            $result['msg'] = '短信验证码错误';
-//            return $result;
-//        }
-//        $data['ctime'] = time();
-//        $data['password'] = $this->enPassword($data['password'], $data['ctime']);
-//
-//        if(!isset($data['avatar'])){
-//
-//            $http_type = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https')) ? 'https://' : 'http://';
-//            $data['avatar'] =$http_type . $_SERVER['HTTP_HOST'].config('jshop.default_image');
-//        }
-//        if(!isset($data['nickname'])){
-//            $data['nickname'] = format_mobile($data['mobile']);
-//        }
-//
-//        //保存推荐人
-//        if(isset($data['pid'])){
-//            $pinfo = $this->where(['id'=>$data['pid']])->find();
-//            if(!$pinfo){
-//                error_code(10014);
-//            }
-//        }
-//        Db::startTrans();//增加事物
-//        try {
-//            //插入数据库
-//            $this->data($data)->allowField(true)->save();
-//
-//            if ($data['authorId']) {//有授权过来，说明是第三方登录过来，需要更新user_wx表，此处直接更新老用户手机号，存在风险 TODO
-//                $userWxModel = new UserWx();
-//                $userWxModel->update(['user_id' => $this->id, 'mobile' => $data['mobile']], ['id' => $data['authorId']]);
-//            }
-//            Db::commit();
-//        }catch (\Exception $e) {
-//                Db::rollback();
-//                $result['msg'] = $e->getMessage();
-//                return $result;
-//        }
-//        return $this->setSession($this ,$loginType);
-//    }
 
     /**
      * 用户账户密码登陆
@@ -151,6 +87,7 @@ class User extends Common
         if ($userInfo) {
             if ($userInfo['status'] == self::STATUS_NORMAL) {
                 $result = $this->setSession($userInfo, $loginType, $platform);            //根据登陆类型，去存session，或者是返回user_token
+                hook('loginAfter',$userInfo);//登录后事件
             } else {
                 return error_code(11022);
             }
@@ -248,6 +185,8 @@ class User extends Common
                     return error_code(11009);
                 }
                 $userData['password'] = $this->enPassword($data['password'], $userData['ctime']);
+            }else{
+                $userData['password'] = "";
             }
 
             //取默认的用户等级
@@ -276,6 +215,7 @@ class User extends Common
 
         if ($userInfo['status'] == self::STATUS_NORMAL) {
             $result = $this->setSession($userInfo, $loginType, $platform);            //根据登陆类型，去存session，或者是返回user_token
+            hook('loginAfter',$userInfo);//登录后事件
         } else {
             return error_code(11022);
         }
@@ -361,11 +301,10 @@ class User extends Common
         }
 
         if ($type == 1) {
-            //$userLogModel = new UserLog();        //添加登录日志
-            //$userLogModel->setLog($userInfo['id'],$userLogModel::USER_LOGIN);
+            $userLogModel = new UserLog();        //添加登录日志
+            $userLogModel->setLog($userInfo['id'],$userLogModel::USER_LOGIN);
         }
         return $result;
-
     }
 
     public function editInfo($id, $sex = '', $birthday = '', $nickname = '', $avatar = '')
@@ -481,6 +420,40 @@ class User extends Common
         return $list;
     }
 
+    /**
+     * 返回layui的table所需要的格式
+     * @author sin
+     * @param $post
+     * @return mixed
+     */
+    public function tableData($post, $isPage = true)
+    {
+        if (isset($post['limit'])) {
+            $limit = $post['limit'];
+        } else {
+            $limit = config('paginate.list_rows');
+        }
+        $tableWhere = $this->tableWhere($post);
+
+        if ($isPage) {
+            $list        = $this->with(['grade','userWx'])->field($tableWhere['field'])->where($tableWhere['where'])->order($tableWhere['order'])->paginate($limit);
+            $data        = $this->tableFormat($list->getCollection());         //返回的数据格式化，并渲染成table所需要的最终的显示数据类型
+            $re['count'] = $list->total();
+        } else {
+            $list = $this->field($tableWhere['field'])->where($tableWhere['where'])->order($tableWhere['order'])->select();
+            if (!$list->isEmpty()) {
+                $data = $this->tableFormat($list->toArray());
+            }
+            $re['count'] = count($list);
+        }
+        $re['code'] = 0;
+        $re['msg']  = '';
+
+        $re['data'] = $data;
+
+        return $re;
+    }
+
 
     public function changeAvatar($id, $image_url)
     {
@@ -498,58 +471,101 @@ class User extends Common
      * 获取用户的信息
      * @return array|null|\PDOStatement|string|\think\Model
      */
-    public function getUserInfo($user_id)
-    {
-        $data = $this->where('id', $user_id)->find();
-        if ($data) {
-            $data['state']    = $data['status'];
-            $data['status']   = config('params.user')['status'][$data['status']];
-            $data['p_mobile'] = $this->getUserMobile($data['pid']);
-            return $data;
+//    public function getUserInfo($user_id)
+//    {
+//        $data = $this->where('id', $user_id)->find();
+//        if ($data) {
+//            $data['state']    = $data['status'];
+//            $data['status']   = config('params.user')['status'][$data['status']];
+//            $data['p_mobile'] = $this->getUserMobile($data['pid']);
+//            return $data;
+//        } else {
+//            return "";
+//        }
+//    }
+
+    public function getUserInfo($user_id){
+        $result = [
+            'status' => false,
+            'data' => [],
+            'msg' => ''
+        ];
+        $userInfo = $this::with("grade")
+            ->field('id,username,mobile,sex,birthday,avatar,nickname,balance,point,grade,status,pid,password,ctime')
+            ->where(array('id' => $user_id))
+            ->find();
+        if ($userInfo !== false) {
+            $userInfo['avatar'] = _sImage($userInfo['avatar']);
+            $userGradeModel = new UserGrade();
+            $gradeinfo = $userGradeModel->where(['id' => $userInfo['grade']])->find();
+            if ($gradeinfo) {
+                $userInfo['grade_name'] = $gradeinfo['name'];
+            } else {
+                $userInfo['grade_name'] = "";
+            }
+            //判断是否有密码，如果有就是true，没有就是false
+            if($userInfo['password']){
+                $userInfo['password'] = true;
+            }else{
+                $userInfo['password'] = false;
+            }
+
+            $result['data'] = $userInfo;
+            $result['status'] = true;
         } else {
-            return "";
+            $result['msg'] = '未找到此用户';
         }
+        return $result;
     }
 
-    /**
-     * 更新密码验证/找回密码验证
-     * @param $data
-     * @return array
-     */
-    public function checkCode($data)
+    //忘记密码，找回密码
+    public function forgetPassword($mobile,$code,$newPwd)
     {
-        $result = ['status' => false, 'msg' => '', 'data' => ''];
+        $result = [
+            'status' => false,
+            'msg' => '',
+            'data' => ''
+        ];
+
+        if(empty($code)){
+            return error_code(10013);
+        }
+        $smsModel = new Sms();
+        if (!$smsModel->check($mobile, $code, 'veri')) {
+            return error_code(10012);
+        }
+        $userInfo = $this->where(['mobile'=>$mobile])->find();
+        if(!$userInfo){
+            $result['msg'] = '没有此手机号码';
+            return $result;
+        }
+        return $this->editPwd($userInfo['id'], $newPwd,$userInfo['ctime']);
+    }
+
+    //修改用户密码，如果用户之前没有密码，那么就不校验原密码
+    public function changePassword($user_id,$newPwd,$password = ""){
+        $result = [
+            'status' => false,
+            'msg' => '',
+            'data' => ''
+        ];
         //修改密码验证原密码
-        if (isset($data['password']) && !empty($data['password'])) {
-            $user = $this->getUserInfo($data['user_id']);
-            if ($user['password'] !== $this->enPassword($data['password'], $user['ctime'])) {
-                $result['status'] = false;
+        $user = $this->get($user_id);
+        if(!$user){
+            return error_code(10000);
+        }
+
+        if($user['password']){
+            if(!$password){
+                $result['msg'] = "请输入原密码";
+                return $result;
+            }
+            if ($user['password'] !== $this->enPassword($password, $user['ctime'])) {
                 $result['msg']    = '原密码不正确!';
                 return $result;
             }
         }
-
-        if (strval($data['newPwd']) !== strval($data['rePwd'])) {
-            $result['msg'] = '两次密码不一致,请重新输入';
-            return $result;
-        }
-
-        if (strlen($data['newPwd']) < 6) {
-            $result['msg'] = '密码不能小于6位数';
-            return $result;
-        }
-
-        //找回密码验证手机验证码
-        if (isset($data['code']) && !empty($data['code'])) {
-            $smsModel = new Sms();
-            if (!$smsModel->check($data['mobile'], $data['code'], 'veri')) {
-                $result['msg'] = '手机验证码错误!';
-                return $result;
-            }
-        }
-
-        return $this->editPwd($data['user_id'], $data['newPwd']);
-
+        return $this->editPwd($user_id, $newPwd,$user['ctime']);
     }
 
 
@@ -559,7 +575,7 @@ class User extends Common
      * @param $pwd
      * @return array
      */
-    private function editPwd($user_id, $newPwd)
+    private function editPwd($user_id, $newPwd,$ctime)
     {
         $result = [
             'status' => true,
@@ -567,13 +583,17 @@ class User extends Common
             'data'   => ''
         ];
 
+        if ($newPwd == '' || strlen($newPwd) < 6 || strlen($newPwd) > 16) {
+            return error_code(11009);
+        }
+
         $res_pwd = $this->save([
-            'password' => $this->enPassword($newPwd, $this->where('id', $user_id)->value('ctime'))
+            'password' => $this->enPassword($newPwd, $ctime)
         ], ['id' => $user_id]);
 
         if (!$res_pwd) {
             $result['status'] = false;
-            $result['msg']    = '修改失败请重试!';
+            $result['msg']    = '原密码和新密码一样!';
             return $result;
         }
 
@@ -877,33 +897,47 @@ class User extends Common
             'data'   => ''
         ];
 
-        if (!isset($data['mobile']) || $data['mobile'] == '') {
-            $return['msg'] = '手机号必填';
-            return $return;
+        if (isset($data['mobile'])) {
+            if ($data['mobile'] == '') {
+                $return['msg'] = '手机号不能为空';
+                return $return;
+            }
+            if (!isMobile($data['mobile'])) {
+                $return['msg'] = '请输入正确的手机号';
+                return $return;
+            }
+            $flag = $this->checkUserByMobile($data['mobile']);
+            if ($flag) {
+                $return['msg'] = '手机号已经存在，请更换手机号重新添加';
+                return $return;
+            }
         }
-        if (!isMobile($data['mobile'])) {
-            $return['msg'] = '请输入正确的手机号';
-            return $return;
+        if(isset($data['password'])){
+            if ($data['password'] == '' || strlen($data['password']) < 6 || strlen($data['password']) > 16) {
+                return error_code(11009);
+            }
+            //密码效验
+            if ($data['password'] !== $data['repassword']) {
+                $return['msg'] = '两次输入的密码不一致，请重新输入。';
+                return $return;
+            }
         }
-        $flag = $this->checkUserByMobile($data['mobile']);
-        if ($flag) {
-            $return['msg'] = '手机号已经存在，请更换手机号重新添加';
-            return $return;
-        }
-        if ($data['password'] == '' || strlen($data['password']) < 6 || strlen($data['password']) > 16) {
-            return error_code(11009);
-        }
-        //密码效验
-        if ($data['password'] !== $data['repassword']) {
-            $return['msg'] = '两次输入的密码不一致，请重新输入。';
-            return $return;
+        //默认用户等级
+        if(!isset($data['grade'])){
+            $userGradeModel = new UserGrade();
+            $gradeInfo = $userGradeModel->where('is_def','1')->find();
+            if($gradeInfo){
+                $data['grade'] = $gradeInfo['id'];
+            }else{
+                $data['grade'] = 0;
+            }
         }
 
 
         $time                = time();
         $newData['username'] = null;
-        $newData['mobile']   = $data['mobile'];
-        $newData['password'] = $this->enPassword($data['password'], $time);
+        $newData['mobile']   = isset($data['mobile']) ? $data['mobile'] : "";
+        $newData['password'] = isset($data['password']) ? $this->enPassword($data['password'], $time) : "";
         $newData['sex']      = isset($data['sex']) ? $data['sex'] : 3;
         $newData['birthday'] = $data['birthday'] ? $data['birthday'] : null;
         $newData['avatar']   = isset($data['avatar']) ? $data['avatar'] : '';
@@ -913,13 +947,13 @@ class User extends Common
         $newData['ctime']    = $time;
         $newData['utime']    = $time;
         $newData['status']   = isset($data['status']) ? $data['status'] : self::STATUS_NORMAL;
-        $newData['pid']      = 0;
+        $newData['pid']      = isset($data['pid']) ? $data['pid'] : 0;
         $newData['grade']    = $data['grade'];
-
         $result         = $this->save($newData);
         $return['data'] = $this->id;
-
         if ($result) {
+            $newData['id'] = $this->id;
+            hook('addUserAfter', $newData);//添加用户后钩子
             if (session('manage.id')) {
                 $userLogModel = new UserLog();
                 $userLogModel->setLog(session('manage.id'), $userLogModel::USER_REG);
@@ -1069,45 +1103,10 @@ class User extends Common
 
 
     /**
-     * 返回layui的table所需要的格式
-     * @author sin
-     * @param $post
-     * @return mixed
-     */
-    public function tableData($post, $isPage = true)
-    {
-        if (isset($post['limit'])) {
-            $limit = $post['limit'];
-        } else {
-            $limit = config('paginate.list_rows');
-        }
-        $tableWhere = $this->tableWhere($post);
-        $list       = [];
-        if ($isPage) {
-            $list        = $this->with('grade')->field($tableWhere['field'])->where($tableWhere['where'])->order($tableWhere['order'])->paginate($limit);
-            $data        = $this->tableFormat($list->getCollection());         //返回的数据格式化，并渲染成table所需要的最终的显示数据类型
-            $re['count'] = $list->total();
-        } else {
-            $list = $this->field($tableWhere['field'])->where($tableWhere['where'])->order($tableWhere['order'])->select();
-            if (!$list->isEmpty()) {
-                $data = $this->tableFormat($list->toArray());
-            }
-            $re['count'] = count($list);
-        }
-        $re['code'] = 0;
-        $re['msg']  = '';
-
-        $re['data'] = $data;
-
-        return $re;
-    }
-
-
-    /**
-     * 获取csv数据
-     * @param $post
-     * @return array
-     */
+ * 获取csv数据
+ * @param $post
+ * @return array
+ */
     public function getCsvData($post)
     {
         $result   = [
@@ -1161,558 +1160,55 @@ class User extends Common
     {
         return $this->hasOne("UserGrade", 'id', 'grade')->bind(['grade_name' => 'name']);
     }
-
-
-    /**
-     * 海报生成方法
-     * @param $data
-     * @return array
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\ModelNotFoundException
-     * @throws \think\exception\DbException
-     */
-    public function posterGenerate($data)
+    public function userWx()
     {
-        $return = [
-            'status' => true,
-            'msg'    => '生成海报',
-            'data'   => ''
-        ];
-
-
-        if (!is_dir(ROOT_PATH . 'public/static/poster/1/')) {
-            mkdirs(ROOT_PATH . 'public/static/poster/1/');
-        }
-        if (!is_dir(ROOT_PATH . 'public/static/poster/2/')) {
-            mkdirs(ROOT_PATH . 'public/static/poster/2/');
-        }
-        if (!is_dir(ROOT_PATH . 'public/static/poster/3/')) {
-            mkdirs(ROOT_PATH . 'public/static/poster/3/');
-        }
-        if (!is_dir(ROOT_PATH . 'public/static/qrcode/h5/')) {
-            mkdirs(ROOT_PATH . 'public/static/qrcode/h5/');
-        }
-
-        $user_id        = $data['user_id'];     //用户ID
-        $type           = $data['type'];        //分享类型 1=商品海报 2=邀请海报 3=拼团海报
-        $id             = $data['id'];          //类型值 1商品海报就是商品ID 2邀请海报无需填 3拼团的商品ID
-        $group_id       = $data['group_id'];    //拼团的团ID，拼团海报可用
-        $source         = $data['source'];      //来源 1=普通H5页面 2=微信小程序 3=微信公众号H5
-        $return_url     = $data['return_url'];  //返回URL地址
-        $path           = ROOT_PATH . 'public/static/poster/' . $type . '/' . $source . '-' . md5($type . '-' . $id . '-' . $return_url . '-' . $user_id) . '.jpg';
-        $paths          = '/static/poster/' . $type . '/' . $source . '-' . md5($type . '-' . $id . '-' . $return_url . '-' . $user_id) . '.jpg';
-        $return['data'] = request()->domain() . str_replace("\\", "/", $paths);
-
-        //判断来源和类型准备生成的材料
-        //判断来源和分享类型和用户ID和返回URL生成所需的二维码
-        include_once ROOT_PATH . 'extend/org/phpqrcode.php';
-        $qrc_text = '扫描或长按识别二维码';
-
-        switch ($source) {
-            case 1:
-                //普通H5页面 普通二维码
-                if ($user_id) {
-                    $qrc_name = md5($return_url . $id . $user_id);
-                } else {
-                    $qrc_name = md5($return_url . $id);
-                }
-                $qrc_uri = '../public/static/qrcode/h5/' . $qrc_name . '.png';
-                $qrc     = $qrc_uri;
-                if ($type == 1) {
-                    //商品
-                    if ($user_id) {
-                        $code     = $this->getShareCodeByUserId($user_id);
-                        $qrc_data = $return_url . '?scene=id%253D' . $id . 'invite%253D' . $code;
-                    } else {
-                        $qrc_data = $return_url . '?scene=id%253D' . $id;
-                    }
-
-                } else if ($type == 2) {
-                    //邀请
-                    if ($user_id) {
-                        $code     = $this->getShareCodeByUserId($user_id);
-                        $qrc_data = $return_url . '?scene=invite%253D' . $code;
-                    } else {
-                        $qrc_data = $return_url;
-                    }
-                } else if ($type == 3) {
-                    //商品
-                    if ($user_id) {
-                        $code     = $this->getShareCodeByUserId($user_id);
-                        $qrc_data = $return_url . '?scene=id%253D' . $id . 'invite%253D' . $code . 'group_id%253D' . $group_id;
-                    } else {
-                        $qrc_data = $return_url . '?scene=id%253D' . $id . 'group_id%253D' . $group_id;
-                    }
-                } else {
-                    $qrc_data = $return_url;
-                }
-
-                QRcode::png($qrc_data, $qrc_uri, 'L', 10, 2);
-                break;
-            case 2:
-                //微信小程序 小程序码
-                $qrc_text = '扫描或长按识别小程序码';
-                if ($type == 1) {
-                    //商品
-                    $code = $this->getShareCodeByUserId($user_id);
-                    $page = 'pages/goods/index/index';
-                    //$page          = 'pages/goods/detail/detail';
-                    $wx            = new Wx();
-                    $wx_appid      = getSetting('wx_appid');
-                    $wx_app_secret = getSetting('wx_app_secret');
-                    $accessToken   = $wx->getAccessToken($wx_appid, $wx_app_secret);
-                    if ($accessToken) {
-                        $style['width'] = 300;
-                        $wxImg          = $wx->getParameterQRCode($accessToken, $page, $code, $id, $style, $wx_appid);
-                        if ($wxImg['status']) {
-                            $qrc = $wxImg['data'];
-                        } else {
-                            return $wxImg;
-                        }
-                    } else {
-                        return $return = [
-                            'status' => false,
-                            'msg'    => '后台小程序配置的APPID和APPSECRET错误，无法生成海报',
-                            'data'   => ''
-                        ];
-                    }
-                } else if ($type == 2) {
-                    //邀请
-                    $code          = $this->getShareCodeByUserId($user_id);
-                    $page          = 'pages/index/index';
-                    $wx            = new Wx();
-                    $wx_appid      = getSetting('wx_appid');
-                    $wx_app_secret = getSetting('wx_app_secret');
-                    $accessToken   = $wx->getAccessToken($wx_appid, $wx_app_secret);
-                    if ($accessToken) {
-                        $style['width'] = 500;
-                        $wxImg          = $wx->getParameterQRCode($accessToken, $page, $code, $id, $style, $wx_appid);
-                        if ($wxImg['status']) {
-                            $qrc = $wxImg['data'];
-                        } else {
-                            return $wxImg;
-                        }
-                    } else {
-                        return $return = [
-                            'status' => false,
-                            'msg'    => '后台小程序配置的APPID和APPSECRET错误，无法生成海报',
-                            'data'   => ''
-                        ];
-                    }
-                } else if ($type == 3) {
-                    //商品
-                    $code = $this->getShareCodeByUserId($user_id);
-                    //商品
-                    $wx            = new Wx();
-                    $wx_appid      = getSetting('wx_appid');
-                    $wx_app_secret = getSetting('wx_app_secret');
-                    $accessToken   = $wx->getAccessToken($wx_appid, $wx_app_secret);
-                    if ($accessToken) {
-                        $style['width'] = 300;
-                        $wxImg          = $wx->getParameterQRCode($accessToken, $return_url, $code, $id, $style, $wx_appid);
-                        if ($wxImg['status']) {
-                            $qrc = $wxImg['data'];
-                        } else {
-                            return $wxImg;
-                        }
-                    } else {
-                        return $return = [
-                            'status' => false,
-                            'msg'    => '后台小程序配置的APPID和APPSECRET错误，无法生成海报',
-                            'data'   => ''
-                        ];
-                    }
-                }
-                break;
-            default:
-                //其他全部生成普通二维码
-                if ($user_id) {
-                    $qrc_name = md5($return_url . $id . $user_id);
-                } else {
-                    $qrc_name = md5($return_url . $id);
-                }
-                $qrc_uri = ROOT_PATH . 'public/static/qrcode/h5/' . $qrc_name . '.png';
-                $qrc     = $qrc_uri;
-                if ($type == 1) {
-                    //商品
-                    if ($user_id) {
-                        $code     = $this->getShareCodeByUserId($user_id);
-                        $qrc_data = $return_url . '?scene=id%253D' . $id . 'invite%253D' . $code;
-                    } else {
-                        $qrc_data = $return_url . '?scene=id%253D' . $id;
-                    }
-                } else if ($type == 2) {
-                    //邀请
-                    if ($user_id) {
-                        $code     = $this->getShareCodeByUserId($user_id);
-                        $qrc_data = $return_url . '?scene=invite%253D' . $code;
-                    } else {
-                        $qrc_data = $return_url;
-                    }
-                } else {
-                    $qrc_data = $return_url;
-                }
-                QRcode::png($qrc_data, $qrc_uri, 'L', 10, 2);
-                break;
-        }
-
-        //判断类型得到所需要的背景图和素材图
-        if ($type == 1) {   //商品海报
-            //商品信息查询获取商品图片、商品名称、什么价格
-            $goodsModel              = new Goods();
-            $goods_info              = $goodsModel->getGoodsDetial($id, 'id,name,image_id,price,spes_desc');
-            $new_data['goods_img']   = $goods_info['data']['image_url'];
-            $new_data['qrc_img']     = $qrc;
-            $new_data['goods_name']  = $goods_info['data']['name'];
-            $new_data['goods_price'] = getMoney($goods_info['data']['price']);
-            $new_data['qrc_text']    = $qrc_text;
-
-            //开始生成
-            $config = $this->goodsPosterConfig($new_data);
-            createPoster($config, $path);
-        } else if ($type == 2) {    //邀请海报
-            //通过用户ID获取用户头像、昵称
-            $code     = $this->getShareCodeByUserId($user_id);
-            $nickname = $this->getUserNickname($user_id);
-            $avatar   = $this->field('avatar')->where('id', 'eq', $user_id)->find();
-            $shopname = getSetting('shop_name');
-
-            $data['avatar_img'] = _sImage($avatar['avatar']);
-            $data['qrc_img']    = $qrc;
-            $data['nickname']   = $nickname;
-            $data['shop_name']  = $shopname;
-            $data['share_code'] = $code;
-            $data['qrc_text']   = $qrc_text;
-
-            //开始生成
-            $config = $this->indexPosterConfig($data);
-            createPoster($config, $path);
-        } else if ($type == 3) {    //拼团海报
-            //商品信息查询获取商品图片、商品名称、什么价格
-            $goodsModel                  = new PintuanRule();
-            $goods_info                  = $goodsModel->getPosterInfo($group_id, $id);
-            $new_data['goods_img']       = $goods_info['data']['image_url'];
-            $new_data['qrc_img']         = $qrc;
-            $new_data['goods_name']      = $goods_info['data']['name'];
-            $new_data['goods_price']     = getMoney($goods_info['data']['pintuan_price']);
-            $new_data['old_goods_price'] = getMoney($goods_info['data']['price']);
-            $new_data['qrc_text']        = $qrc_text;
-            echo json_encode($data);
-            exit;
-            //开始生成
-            $config = $this->piecePosterConfig($new_data);
-            createPoster($config, $path);
-        }
-        //保存图片到图片空间
-        $imageModel     = new Images();
-        $image          = $imageModel->saveImage($return['data'], true);
-        $return['data'] = $image['data']['url'];
-        return $return;
+        return $this->hasMany("UserWx", 'user_id', 'id');
     }
 
 
     /**
-     * 商品海报生成需要的配置
-     * @param $data
-     * @return array
+     * 按天统计新会员
      */
-    public function goodsPosterConfig($data)
+    public function statistics($day)
     {
-        $goods_config = [
-            'image'      => [
-                [
-                    'url'     => $data['goods_img'],
-                    'left'    => 0,
-                    'top'     => 0,
-                    'stream'  => 0,
-                    'right'   => 0,
-                    'bottom'  => 0,
-                    'width'   => 560,
-                    'height'  => 560,
-                    'opacity' => 100
-                ],
-                [
-                    'url'     => $data['qrc_img'],
-                    'left'    => -20,
-                    'top'     => 575,
-                    'stream'  => 0,
-                    'right'   => 0,
-                    'bottom'  => 0,
-                    'width'   => 150,
-                    'height'  => 150,
-                    'opacity' => 100
-                ]
-            ],
-            'text'       => [
-                [
-                    'text'       => $data['goods_name'],
-                    'left'       => 20,
-                    'top'        => 580,
-                    'width'      => 350,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Light.otf',
-                    'fontSize'   => 20,
-                    'fontColor'  => '0,0,0',
-                    'angle'      => 0,
-                    'lineHeight' => 36,
-                    'length'     => 25,
-                ],
-                [
-                    'text'       => '￥' . $data['goods_price'],
-                    'left'       => 20,
-                    'top'        => 680,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Bold.otf',
-                    'fontSize'   => 30,
-                    'fontColor'  => '255,0,0',
-                    'angle'      => 0,
-                    'width'      => 340,
-                    'lineHeight' => 36,
-                    'length'     => 23,
-                ],
-                [
-                    'text'       => $data['qrc_text'],
-                    'left'       => 370,
-                    'top'        => 725,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Light.otf',
-                    'fontSize'   => 10,
-                    'fontColor'  => '50,50,50',
-                    'angle'      => 0,
-                    'width'      => 170,
-                    'lineHeight' => 20,
-                    'length'     => 12,
-                    'center'     => true
-                ]
-            ],
-            'background' => '../public/static/share/goods.png',
-        ];
-        return $goods_config;
+        $where   = [];
+        $where[] = ['ctime', '>', strtotime('-' . $day . ' days')];
+
+        $field = 'DATE_FORMAT(from_unixtime(ctime),"%Y-%m-%d") as day, count(*) as nums';
+
+        $res  = $this->field($field)->where($where)->where("TIMESTAMPDIFF(DAY,from_unixtime(ctime),now()) <7")->group('DATE_FORMAT(from_unixtime(ctime),"%Y-%m-%d")')->select();
+        $data = get_lately_days($day, $res);
+        return ['day' => $data['day'], 'data' => $data['data']];
     }
 
-
     /**
-     * 邀请海报生成需要的配置
-     * @param $data
+     * 按天统计当天下单活跃会员
+     * @param $day
      * @return array
      */
-    public function indexPosterConfig($data)
+    public function statisticsOrder($day)
     {
-        $index_config = [
-            'image'      => [
+        $orderModel = new Order();
+        $res        = [];
+        for ($i = 0; $i < $day; $i++) {
+            $where    = [];
+            $curr_day = date('Y-m-d');
+            if ($i == 0) {
+                $where[]  = ['ctime', '<', time()];
+                $curr_day = date('Y-m-d');
+            } else {
+                $where[]  = ['ctime', '<', strtotime(date("Y-m-d", strtotime("-" . $i . " day")) . ' 23:59:59')];
+                $curr_day = date("Y-m-d", strtotime("-" . $i . " day"));
+            }
+            $where[] = ['ctime', '>=', strtotime(date("Y-m-d", strtotime("-" . $i . " day")) . ' 00:00:00')];
+            $res[]   =
                 [
-                    'url'     => $data['avatar_img'],
-                    'left'    => 50,
-                    'top'     => 40,
-                    'stream'  => 0,
-                    'right'   => 0,
-                    'bottom'  => 0,
-                    'width'   => 100,
-                    'height'  => 100,
-                    'opacity' => 100
-                ],
-                [
-                    'url'     => $data['qrc_img'],
-                    'left'    => 120,
-                    'top'     => 215,
-                    'stream'  => 0,
-                    'right'   => 0,
-                    'bottom'  => 0,
-                    'width'   => 320,
-                    'height'  => 320,
-                    'opacity' => 100
-                ]
-            ],
-            'text'       => [
-                [
-                    'text'       => '您的好友【' . $data['nickname'] . '】',
-                    'left'       => 170,
-                    'top'        => 60,
-                    'width'      => 400,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Bold.otf',
-                    'fontSize'   => 18,
-                    'fontColor'  => '255,255,255',
-                    'angle'      => 0,
-                    'lineHeight' => 20,
-                    'length'     => 30,
-                ],
-                [
-                    'text'       => '发现了一家好店，邀您查看',
-                    'left'       => 170,
-                    'top'        => 100,
-                    'width'      => 400,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Light.otf',
-                    'fontSize'   => 16,
-                    'fontColor'  => '255,255,255',
-                    'angle'      => 0,
-                    'lineHeight' => 20,
-                    'length'     => 30,
-                ],
-                [
-                    'text'       => $data['shop_name'],
-                    'top'        => 555,
-                    'width'      => 400,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Bold.otf',
-                    'fontSize'   => 16,
-                    'fontColor'  => '0,0,0',
-                    'angle'      => 0,
-                    'lineHeight' => 20,
-                    'length'     => 20,
-                    'center'     => true
-                ],
-                [
-                    'text'       => $data['qrc_text'],
-                    'top'        => 590,
-                    'left'       => 0,
-                    'width'      => 400,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Light.otf',
-                    'fontSize'   => 14,
-                    'fontColor'  => '30,30,30',
-                    'angle'      => 0,
-                    'lineHeight' => 20,
-                    'length'     => 20,
-                    'center'     => true
-                ],
-                [
-                    'text'       => '进入【' . $data['shop_name'] . '】一起寻好物吧！',
-                    'top'        => 620,
-                    'left'       => 0,
-                    'width'      => 400,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Light.otf',
-                    'fontSize'   => 14,
-                    'fontColor'  => '30,30,30',
-                    'angle'      => 0,
-                    'lineHeight' => 20,
-                    'length'     => 60,
-                    'center'     => true
-                ],
-                [
-                    'text'       => $data['share_code'],
-                    'top'        => 715,
-                    'left'       => 0,
-                    'width'      => 400,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Bold.otf',
-                    'fontSize'   => 32,
-                    'fontColor'  => '255,0,0',
-                    'angle'      => 0,
-                    'lineHeight' => 20,
-                    'length'     => 30,
-                    'center'     => true
-                ],
-                [
-                    'text'       => '我的专属邀请码',
-                    'top'        => 760,
-                    'left'       => 0,
-                    'width'      => 400,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Light.otf',
-                    'fontSize'   => 16,
-                    'fontColor'  => '0,0,0',
-                    'angle'      => 0,
-                    'lineHeight' => 20,
-                    'length'     => 30,
-                    'center'     => true
-                ],
-            ],
-            'background' => '../public/static/share/index.png',
-        ];
-        return $index_config;
-    }
+                    'nums' => $orderModel->where($where)->group('user_id')->count(),
+                    'day'  => $curr_day
+                ];
+        }
 
-
-    /**
-     * 商品海报生成需要的配置
-     * @param $data
-     * @return array
-     */
-    public function piecePosterConfig($data)
-    {
-        $goods_config = [
-            'image'      => [
-                [
-                    'url'     => $data['goods_img'],
-                    'left'    => 0,
-                    'top'     => 0,
-                    'stream'  => 0,
-                    'right'   => 0,
-                    'bottom'  => 0,
-                    'width'   => 560,
-                    'height'  => 560,
-                    'opacity' => 100
-                ],
-                [
-                    'url'     => $data['qrc_img'],
-                    'left'    => -20,
-                    'top'     => 575,
-                    'stream'  => 0,
-                    'right'   => 0,
-                    'bottom'  => 0,
-                    'width'   => 150,
-                    'height'  => 150,
-                    'opacity' => 100
-                ]
-            ],
-            'text'       => [
-                [
-                    'text'       => $data['goods_name'],
-                    'left'       => 20,
-                    'top'        => 580,
-                    'width'      => 350,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Light.otf',
-                    'fontSize'   => 20,
-                    'fontColor'  => '0,0,0',
-                    'angle'      => 0,
-                    'lineHeight' => 36,
-                    'length'     => 25,
-                ],
-                [
-                    'text'       => '原价：￥' . $data['old_goods_price'],
-                    'left'       => 20,
-                    'top'        => 655,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Light.otf',
-                    'fontSize'   => 12,
-                    'fontColor'  => '0,0,0',
-                    'angle'      => 0,
-                    'width'      => 340,
-                    'lineHeight' => 36,
-                    'length'     => 23,
-                ],
-                [
-                    'text'       => '拼团价：',
-                    'left'       => 20,
-                    'top'        => 695,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Bold.otf',
-                    'fontSize'   => 14,
-                    'fontColor'  => '0,0,0',
-                    'angle'      => 0,
-                    'width'      => 340,
-                    'lineHeight' => 36,
-                    'length'     => 23,
-                ],
-                [
-                    'text'       => '￥' . $data['goods_price'],
-                    'left'       => 85,
-                    'top'        => 695,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Bold.otf',
-                    'fontSize'   => 30,
-                    'fontColor'  => '255,0,0',
-                    'angle'      => 0,
-                    'width'      => 340,
-                    'lineHeight' => 36,
-                    'length'     => 23,
-                ],
-                [
-                    'text'       => $data['qrc_text'],
-                    'left'       => 370,
-                    'top'        => 725,
-                    'fontPath'   => ROOT_PATH . 'public' . DS . 'static' . DS . 'share' . DS . 'SourceHanSansCN-Light.otf',
-                    'fontSize'   => 10,
-                    'fontColor'  => '50,50,50',
-                    'angle'      => 0,
-                    'width'      => 170,
-                    'lineHeight' => 20,
-                    'length'     => 12,
-                    'center'     => true
-                ]
-            ],
-            'background' => '../public/static/share/goods.png',
-        ];
-        return $goods_config;
+        $data = get_lately_days($day, $res);
+        return ['day' => $data['day'], 'data' => $data['data']];
     }
 }

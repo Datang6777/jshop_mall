@@ -19,6 +19,10 @@
         .layui-layer-content {
             width: 600px !important;
         }
+
+    }
+    .layui-form{
+        position: absolute !important;
     }
 </style>
 <form id="addTypeForm">
@@ -224,14 +228,20 @@
         //选择已有参数
         var selectParamsId = 0;
         $(".layui-tab").on('click', '.select-params-class', function (e) {
+
             selectParamsId = $(this).parent().parent().attr('data-id');
+
             JsGet("{:url('GoodsParams/getlist')}", function (e) {
-                window.box = layer.open({
-                    type: 1,
-                    content: e,
-                    area: ['700px', '450px'],
-                    title: '参数列表'
-                });
+                if(e.status){
+                    window.box = layer.open({
+                        type: 1,
+                        content: e.data,
+                        area: setpage(700,450),
+                        title: '参数列表'
+                    });
+                }else{
+                    layer.msg(e.msg);
+                }
             });
         });
         //监听商品列表页工具条
@@ -253,12 +263,16 @@
         $(".layui-tab").on('click', '.select-type-class', function (e) {
             selectTypeId = $(this).parent().parent().attr('data-id');
             JsGet("{:url('GoodsTypeSpec/getlist')}", function (e) {
-                window.box = layer.open({
-                    type: 1,
-                    content: e,
-                    area: ['700px', '450px'],
-                    title: '属性列表'
-                });
+                if(e.status){
+                    window.box = layer.open({
+                        type: 1,
+                        content: e.data,
+                        area: setpage(700,450),
+                        title: '属性列表'
+                    });
+                }else{
+                    layer.msg(e.msg);
+                }
             });
         });
         //监听商品列表页工具条

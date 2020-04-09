@@ -69,7 +69,7 @@ class BillRefund extends Common
      * 退款单去退款或者拒绝
      * @param $refund_id  //退款单id
      * @param $status  //2或者3，通过或者拒绝
-     * @param string $payment_code  //退款方式，如果和退款单上的一样，说明没有修改，原路返回，否则只记录状态，不做实际退款
+     * @param string $payment_code  //退款方式，如果和退款单上的一样，说明没有修改，原路返回，否则只记录状态，不做实际退款,如果为空是原路返回
      * @return array|mixed
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
@@ -91,26 +91,31 @@ class BillRefund extends Common
         if(!$info){
             return error_code(13210);
         }
+        if($payment_code == ""){
+            $payment_code = $info['payment_code'];          //如果啥也不传，就是原路返回
+        }
 
         if($status == self::STATUS_REFUND){
-            //退款同意
+            //退款同意，先发退款消息和钩子，下面原路返回可能失败，但是在业务上相当于退款已经退过了，只是实际的款项可能还没到账
+            //发送退款消息
+            $eventData              = $info->toArray();
+            sendMessage($info['user_id'], 'refund_success', $eventData);
+
+            //退款完成后的钩子
+            Hook('refund', $refund_id);
+            $result['msg'] = '退款单退款成功';
+
             //如果前端传过来的退款方式和退款单上的退款方式一样的话，就说明是原路返回，试着调用支付方式的退款方法,如果不一样的话，就直接做退款单的退款状态为已退款就可以了
             if($payment_code == $info['payment_code'] && $payment_code!='offline'){//修复线下退款bug
                 $result = $this->paymentRefund($refund_id);
             }else{
                 //只修改状态，不做实际退款，实际退款线下去退。
+                $data['status'] = self::STATUS_REFUND;
+                $data['payment_code'] = $payment_code;
+                $this->save($data,$where);
                 $result['status'] = true;
             }
 
-            $data['status'] = self::STATUS_REFUND;
-            $data['payment_code'] = $payment_code;
-            $this->save($data,$where);
-            $result['msg'] = '退款单退款成功';
-            if($result['status']){
-                //发送退款消息
-                $eventData              = $info->toArray();
-                sendMessage($info['user_id'], 'refund_success', $eventData);
-            }
             return $result;
         }elseif($status == self::STATUS_REFUSE){
             //退款拒绝
@@ -163,7 +168,7 @@ class BillRefund extends Common
             return $result;
         }
 
-        //取此支付方式的信息，然后去支付
+        //取此支付方式的信息
         $paymentsModel = new Payments();
         $paymentInfo = $paymentsModel->getPayment($info['payment_code'], $paymentsModel::PAYMENT_STATUS_YES);
         if(!$paymentInfo){
@@ -268,11 +273,12 @@ class BillRefund extends Common
     {
 
         foreach($list as $k => $v) {
+            $list[$k]['new_memo'] = $this->new_memo($v);        //查看退款单的一些依赖关系
             if($v['status']) {
                 $list[$k]['status_name'] = config('params.bill_refund')['status'][$v['status']];
             }
             if($v['user_id']) {
-                $list[$k]['user_id'] = get_user_info($v['user_id']);
+                $list[$k]['user_id'] = get_user_info($v['user_id'], 'nickname');
             }
 
             if($v['ctime']) {
@@ -287,6 +293,27 @@ class BillRefund extends Common
 
         }
         return $list;
+    }
+
+
+    //看退款单的依赖关系，如果有的话，显示出来，这样退款的时候，有据可查。
+    private function new_memo($info){
+        $str = "";
+        if(!isset($info['type'])){
+            return $str;
+        }
+        switch ($info['type']){
+            case self::TYPE_ORDER:
+                $billReshipModel = new BillReship();
+                $reship = $billReshipModel->where('aftersales_id',$info['aftersales_id'])->find();
+                if($reship){
+                    $str = "退货单：".config('params.bill_reship.status')[$reship['status']];
+                }
+
+                break;
+        }
+        return $str;
+
     }
 
 

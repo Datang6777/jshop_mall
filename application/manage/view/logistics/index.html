@@ -12,25 +12,22 @@
                 <input type="text" name="code" lay-verify="title" placeholder="请输入公司编码关键字" autocomplete="off" class="layui-input">
             </div>
         </div>
-
         <div class="layui-inline">
             <button type="button" class="layui-btn layui-btn-sm" lay-submit lay-filter="logistics-search"><i class="iconfont icon-chaxun"></i>筛选</button>
             <button type="button" class="layui-btn layui-btn-sm add-logistics"><i class="layui-icon">&#xe608;</i> 添加</button>
         </div>
     </div>
 </form>
-
 <div class="table-body">
 	<table id="logisticsTable" lay-filter="logisticsTable"></table>
 </div>
-
 <script>
     layui.use(['table','form','layer','laydate'],function(){
         var layer = layui.layer, table = layui.table,form = layui.form,date = layui.laydate;
         //执行渲染
         table.render({
             elem: '#logisticsTable', //指定原始表格元素选择器（推荐id选择器）
-            height: 'full-220',
+            height: 'full-99',
             cellMinWidth: '80',
             page: 'true',
             limit:'20',
@@ -38,17 +35,18 @@
             url: "{:url('logistics/index')}",
             cols: [[ //标题栏
                 {checkbox: true},
-                {field: 'id',   sort: true, title: 'ID',width:80,align:'center'},
+                {field: 'id', sort: true, title: 'ID',width:90,align:'center'},
                 {field: 'logi_name', title: '物流公司名称',align:'center'},
                 {field: 'logi_code', title: '物流公司编码',align:'center'},
-                {field: 'sort', sort: true, title: '排序',align:'center'},
-                {width:150, title:'操作',align:'center', toolbar:'#logisticsBar'}
+                {field: 'sort', sort: true, title: '排序',width:80,align:'center'},
+                {width:140, title:'操作',align:'center', toolbar:'#logisticsBar'}
             ]] //设置表头
         });
         //search
         date.render({
             elem:'#utime',
-            range: '~'
+            range: '~',
+						trigger: 'click' //自动弹出控件的事件，采用click弹出
         });
         form.on('submit(logistics-search)', function(data){
             layui.table.reload('logisticsTable', {
@@ -63,55 +61,44 @@
 
         //layui弹出层
         $(document).on('click','.add-logistics',function(){
-            $.ajax({
-                type:'get',
-                url: "{:url('logistics/add')}",
-                success:function(e){
+            JsGet("{:url('logistics/add')}", function(e){
+                if(e.status){
                     window.box = layer.open({
                         type: 1,
-                        content: e,
-                        area: ['400px', '300px'],
+                        content: e.data,
+                        area: setpage(400,300),
                         title:'添加物流公司'
                     });
+                }else{
+                    layer.msg(e.msg);
                 }
-            })
+            });
         });
-
 
         //ajax提交商品的添加
         form.on('submit(add-logistics)', function(data){
-            $.ajax({
-                url:"{:url('logistics/add')}",
-                type:'post',
-                data: data.field,
-                success:function(res){
-                    if(res.status == true){
-                        layer.close(window.box);
-                        layer.msg(res.msg, {icon: 6});
-                        table.reload('logisticsTable');
-                    }else{
-                        layer.msg(res.msg,{icon: 5});
-                    }
+            JsPost("{:url('logistics/add')}", data.field, function(res){
+                if(res.status == true){
+                    layer.close(window.box);
+                    layer.msg(res.msg, {icon: 6});
+                    table.reload('logisticsTable');
+                }else{
+                    layer.msg(res.msg,{icon: 5});
                 }
-            },'json');
+            });
         });
 
 
         form.on('submit(logistics-edit)',function(data){
-            $.ajax({
-                url:"{:url('logistics/edit')}",
-                type:"post",
-                data: data.field,
-                success:function(res){
-                    if(res.status == true){
-                        layer.close(window.box);
-                        layer.msg(res.msg, {icon: 6});
-                        table.reload('logisticsTable');
-                    }else{
-                        layer.msg(res.msg,{icon: 5});
-                    }
+            JsPost("{:url('logistics/edit')}", data.field, function(res){
+                if(res.status == true){
+                    layer.close(window.box);
+                    layer.msg(res.msg, {icon: 6});
+                    table.reload('logisticsTable');
+                }else{
+                    layer.msg(res.msg,{icon: 5});
                 }
-            },'json');
+            });
         });
 
 
@@ -122,38 +109,31 @@
             var tr = obj.tr; //获得当前行 tr 的DOM对象
             if(layEvent === 'del'){ //删除
                 layer.confirm('真的要删除么',{icon: 3}, function(index){
-                    $.ajax({
-                        data:{id:data.id},
-                        url:"{:url('logistics/del')}",
-                        type:'post',
-                        success:function(res){
-                            if(res.status == true){
-                                obj.del(); //删除对应行（tr）的DOM结构，并更新缓存
-                                layer.close(index);//向服务端发送删除指令
-                                layer.msg("删除成功", {icon: 6});
-                            }else{
-                                layer.msg("删除成功", {icon: 5});
-                            }
+                    JsPost("{:url('logistics/del')}", {id:data.id}, function(res){
+                        if(res.status == true){
+                            obj.del(); //删除对应行（tr）的DOM结构，并更新缓存
+                            layer.close(index);//向服务端发送删除指令
+                            layer.msg("删除成功", {icon: 6});
+                        }else{
+                            layer.msg("删除成功", {icon: 5});
                         }
-                    },'json');
+                    });
                 });
             } else if(layEvent === 'edit'){ //编辑
                 //do something
-                $.ajax({
-                    data:{id:data.id},
-                    url:"{:url('logistics/edit')}",
-                    type:'get',
-                    success:function(e){
+                JsGet("{:url('logistics/edit')}?id="+data.id, function(e){
+                    if(e.status){
                         window.box = layer.open({
                             type:1,
-                            content:e,
-                            area:['400px','300px'],
+                            content:e.data,
+                            area:setpage(400,300),
                             title:'修改物流公司',
                             maxmin:true
                         })
+                    }else{
+                        layer.msg(e.msg);
                     }
                 });
-
             }
         });
 

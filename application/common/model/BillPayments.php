@@ -1,6 +1,7 @@
 <?php
 namespace app\common\model;
 
+use org\login\Wxofficial;
 use think\Validate;
 use think\Db;
 use think\model\concern\SoftDelete;
@@ -122,7 +123,7 @@ class BillPayments extends Common
                 $list[$k]['status'] = config('params.bill_payments')['status'][$v['status']];
             }
             if($v['user_id']) {
-                $list[$k]['user_id'] = get_user_info($v['user_id']);
+                $list[$k]['user_id'] = get_user_info($v['user_id'], 'nickname');
             }
             if($v['payment_code']) {
                 $list[$k]['payment_code'] = config('params.payment_type')[$v['payment_code']];
@@ -146,13 +147,23 @@ class BillPayments extends Common
      * @param $params           支付的时候用到的参数，如果是微信支付的话，这里可以传trade_type=>'JSAPI'(小程序支付),或者'MWEB'(h5支付),当是JSPI的时候，可以不传其他参数了，默认就可以，默认的这个值就是JSAPI，如果是MWEB的话，需要传wap_url(网站url地址)参数和wap_name（网站名称）参数，其他支付方式需要传什么参数这个以后再说
      * @return mixed
      */
-    public function pay($source_str, $payment_code, $user_id = '', $type = self::TYPE_ORDER,$params = []){
+    public function pay($source_str, $payment_code, $user_id = 0, $type = self::TYPE_ORDER,$params = []){
+        //如果支付类型为余额充值，那么资源ID就是用户ID
+        if($type == self::TYPE_RECHARGE) {
+            $source_str = $user_id;
+        }
 
         //判断支付方式是否开启
         $paymentsModel = new Payments();
         $paymentInfo = $paymentsModel->getPayment($payment_code, $paymentsModel::PAYMENT_STATUS_YES);
         if(!$paymentInfo){
             return error_code(10050);
+        }
+
+        //如果是公众号支付，并且没有登陆或者没有open_id的话，报错
+        $re = $this->checkOpenId($payment_code,$user_id,$params);
+        if(!$re['status']){
+            return $re;
         }
 
         $result = $this->toAdd($source_str, $payment_code, $user_id, $type,$params);
@@ -187,7 +198,7 @@ class BillPayments extends Common
      * @param int $type             支付类型
      * @return array
      */
-    public function toAdd($source_str, $payment_code, $user_id = '', $type = self::TYPE_ORDER, $params = [])
+    public function toAdd($source_str, $payment_code, $user_id = 0, $type = self::TYPE_ORDER, $params = [])
     {
         $result = [
             'status' => false,
@@ -210,14 +221,10 @@ class BillPayments extends Common
         try {
             $data['payment_id'] = get_sn(2);
             $data['money']      = $paymentRel['data']['money'];
-            if ($user_id == '') {
-                $data['user_id'] = $paymentRel['data']['user_id'];
-            } else {
-                $data['user_id'] = $user_id;
-            }
+            $data['user_id'] = $user_id;
             $data['type']         = $type;//保存类型
             $data['payment_code'] = $payment_code;
-            $data['ip']           = get_client_ip();
+            $data['ip']           = get_client_ip(0,true);
             $data['params']       = json_encode($params);         //支付的时候，用到的参数
             $this->save($data);
             //上面保存好收款单表，下面保存收款单明细表
@@ -242,6 +249,11 @@ class BillPayments extends Common
             $this->toUpdate($data['payment_id'], SELF::STATUS_PAYED, $data['payment_code'],$data['money'], '金额为0，自动支付成功', '');
             return error_code(10059);
         }
+
+        //取支付标题，就不往数据库里存了吧
+        $data['pay_title'] = $this->payTitle($data,$rel_arr);
+
+
         $result['status'] = true;
         $result['data']   = $data;
         return $result;
@@ -580,9 +592,9 @@ class BillPayments extends Common
     public function exportValidate(&$params = [])
     {
         $result = [
-            'status' => false,
+            'status' => true,
             'data'   => [],
-            'msg'    => '参数丢失',
+            'msg'    => '验证成功',
         ];
         return $result;
     }
@@ -656,4 +668,70 @@ class BillPayments extends Common
         }
         return $return_data;
     }
+
+    private function checkOpenId($payment_code,$user_id,$params){
+        $result = [
+            'status' => true,
+            'data' => '',
+            'msg' => ''
+        ];
+
+        //当只有微信支付的时候，才判断
+        if($payment_code != "wechatpay"){
+            return $result;
+        }
+
+        //当只有公众号支付的时候，才判断
+        if(!(isset($params['trade_type']) && $params['trade_type'] == 'JSAPI_OFFICIAL')){
+            return $result;
+        }
+        if(isset($params['openid']) && $params['openid'] != ""){
+            return $result;
+        }
+
+
+
+        //到这里基本上就说明
+        if(!isset($params['url'])){
+            return error_code(10067);
+        }
+
+        $m = new Wxofficial();
+        $result['msg'] = $m->geturl($params['url'],2);
+        $result['status'] = false;
+        $result['data'] = 10066;
+        return $result;
+    }
+
+    private function payTitle($data,$rel){
+        $re = "";
+        switch($data['type']){
+            case self::TYPE_ORDER:
+                if($rel){
+                    $orderItemModel = new OrderItems();
+                    $where[] = ['order_id', 'eq',$rel[0]['source_id']];
+                    $info = $orderItemModel->where($where)->find();                         //只取第一个订单的第一个商品的名称吧，其他就不取了
+                    if($info){
+                        $re = $info['name'];
+                    }
+                }
+                break;
+            case self::TYPE_RECHARGE:
+                    $re = "账户充值";
+                break;
+            case self::TYPE_FORM_PAY:
+                break;
+            case self::TYPE_FORM_ORDER:
+                break;
+            default:
+        }
+
+        if($re == ""){
+            $re = getSetting('shop_name');
+        }
+        return $re;
+
+    }
+
+
 }

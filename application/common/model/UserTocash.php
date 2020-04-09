@@ -27,11 +27,23 @@ class UserTocash extends Common
             $result['msg'] = "提现最低不能少于".getSetting('tocash_money_low')."元";
             return $result;
         }
+        //判断历史提现金额
+        $where[] = ['ctime','>=',strtotime(date('Y-m-d').' 00:00:00')];
+        $where[] = ['ctime','<=',strtotime(date('Y-m-d').' 23:59:59')];
+        $todayMoney = $this->where($where)->sum('money');
+        $todayMoney = $todayMoney + $money;//历史今天提现加上本次提现
+        $tocash_money_limit = getSetting('tocash_money_limit');
+        if($tocash_money_limit && $todayMoney > $tocash_money_limit){
+            $result['msg'] = "每日提现不能超过".getSetting('tocash_money_limit')."元";
+            return $result;
+        }
 
         $userModel = new User();
         $userInfo = $userModel->getUserInfo($user_id);
-        if(!$userInfo){
+        if(!$userInfo['status']){
             return error_code(11004);
+        }else{
+            $userInfo = $userInfo['data'];
         }
         if($money > $userInfo['balance']){
             return error_code(11015);
@@ -199,17 +211,20 @@ class UserTocash extends Common
      *
      * @return mixed
      */
-    protected function tableFormat( $list )
+    protected function tableFormat($list)
     {
-        foreach ( $list as $k => $v ) {
-            if ( $v[ 'ctime' ] ) {
-                $list[ $k ][ 'ctime' ] = getTime($v[ 'ctime' ]);
+        foreach ($list as $k => $v) {
+            if ($v['ctime']) {
+                $list[$k]['ctime'] = getTime($v['ctime']);
             }
-            if ( $v[ 'utime' ] ) {
-                $list[ $k ][ 'utime' ] = getTime($v[ 'utime' ]);
+            if ($v['utime']) {
+                $list[$k]['utime'] = getTime($v['utime']);
             }
-            if ( $v[ 'type' ] ) {
-                $list[ $k ][ 'type' ] = config('params.user_tocash')[ 'type' ][ $v[ 'type' ] ];
+            if ($v['type']) {
+                $list[$k]['type'] = config('params.user_tocash')['type'][$v['type']];
+            }
+            if ($v['user_id']) {
+                $list[$k]['mobile'] = get_user_info($v['user_id']);
             }
 //            if($v['card_number']){
 //                $list[$k]['card_number'] = bankCardNoFormat($v['card_number']);
@@ -262,7 +277,7 @@ class UserTocash extends Common
     public function userInfo()
     {
         return $this->hasOne('User','id','user_id')->bind([
-            'mobile'
+            'nickname'
         ]);
     }
 }

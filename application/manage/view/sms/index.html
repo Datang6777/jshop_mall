@@ -69,12 +69,13 @@
         layui.laydate.render({
             elem: '#date',
             range: '到',
-            type: 'datetime'
+            type: 'datetime',
+						trigger: 'click' //自动弹出控件的事件，采用click弹出
         });
         //获取列表数据
         layui.table.render({
             elem: '#message',
-            height: 'full-220',
+            height: 'full-139',
             cellMinWidth: '80',
             page: 'true',
             limit: '20',
@@ -82,12 +83,12 @@
             id: 'message',
             method: 'post',
             cols: [[
-                { type: 'numbers' },
-                { field: 'mobile', width: 140, title: '手机号码' },
-                { field: 'code', width: 150, title: '类型' },
-                { field: 'content', title: '内容' },
-                { field: 'ip', width: 140, title: 'IP' },
-                { field: 'status', width: 80, title: '状态' },
+                {field:'id', width:90, title:'ID', align:'center'},
+                { field: 'mobile', width: 140, title: '手机号码', align:'center' },
+                { field: 'code', width: 150, title: '类型', align:'center' },
+                { field: 'content', title: '内容', align:'center' },
+                { field: 'ip', width: 140, title: 'IP', align:'center' },
+                { field: 'status', width: 80, title: '状态', align:'center' },
                 { field: 'ctime', width: 180, title: '时间', align: 'center' },
                 {
                     field: 'operating', title: '操作', width: 90, align: 'center', templet: function (data) {
@@ -116,15 +117,10 @@
             layer.confirm('确定要删除此消息吗？', {
                 btn: ['确定', '取消'] //按钮
             }, function () {
-                $.ajax({
-                    type: 'get',
-                    url: "{:url('Sms/del')}",
-                    data: 'id=' + id,
-                    success: function (e) {
-                        layer.msg(e.msg);
-                        if (e.status) {
-                            layui.table.reload('message');
-                        }
+                JsGet("{:url('Sms/del')}?id="+id, function(e){
+                    layer.msg(e.msg);
+                    if (e.status) {
+                        layui.table.reload('message');
                     }
                 });
             }, function () {

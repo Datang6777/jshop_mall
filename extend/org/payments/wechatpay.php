@@ -10,6 +10,16 @@ class wechatpay implements Payment
 
     function __construct($config){
         $this->config = $config;
+        if(!isset($this->config['type'])){
+            $this->config['type'] = 2;          //默认普通模式，兼容之前代码
+        }
+        //服务商模式，参数初始化
+        if($this->config['type'] == 1){
+            $this->config['key'] = config('jshop.service_wechatpay_key');
+            $this->config['sub_mch_id'] = $this->config['mch_id'];
+            $this->config['mch_id'] = config('jshop.service_wechatpay_mch_id');
+            $this->config['appid'] = config('jshop.service_wechatpay_appid');
+        }
     }
 
     public function pay($paymentInfo){
@@ -20,9 +30,15 @@ class wechatpay implements Payment
         ];
         $url = 'https://api.mch.weixin.qq.com/pay/unifiedorder';
 
+        
         $data['mch_id'] = $this->config['mch_id'];//商户号
+        if($this->config['type'] == 1){
+            $data['appid'] = $this->config['appid'];
+            $data['sub_mch_id'] = $this->config['sub_mch_id'];//商户号
+        }
+        
         $data['nonce_str'] = self::getNonceStr();//$this->config['nonce_str'];//32位随机数
-        $data['body'] = "商品详情";
+        $data['body'] = mb_substr($paymentInfo['pay_title'], 0, 42, 'utf-8');       //商品描述，不能超过128个字符，所以这里要截取，防止超过
         $data['out_trade_no'] = $paymentInfo['payment_id'];                    //商户订单号
         $data['total_fee'] = $paymentInfo['money']*100;                        //总金额
         $data['spbill_create_ip'] = $paymentInfo['ip'];                 //终端ip
@@ -50,8 +66,12 @@ class wechatpay implements Payment
         if(!$appid_re['status']){
             return $appid_re;
         }
-        $data['appid'] = $appid_re['data'];
 
+        if($this->config['type'] == 1){
+            $data['sub_appid'] = $appid_re['data'];
+        }else{
+            $data['appid'] = $appid_re['data']; 
+        }
 
 
         $data['trade_type'] = $trade_type;                       //交易类型JSAPI微信小程序或微信公众号，MWEB是H5支付,APP是app支付
@@ -59,18 +79,19 @@ class wechatpay implements Payment
         //当时JSAPI的时候，也就是小程序的时候，openid必传
         if($trade_type == 'JSAPI'){
             //取open_id
-            $openid_re = $this->getOpenId($paymentInfo['user_id'],$params['trade_type']);
-            if(!$openid_re['status']){
-                return $openid_re;
+            if($params['trade_type'] == 'JSAPI_OFFICIAL' && isset($params['openid'])){      //如果是公众号，并且前台传过来了openid就用前台的。
+                $data['openid'] = $params['openid'];
+            }else{
+                $openid_re = $this->getOpenId($paymentInfo['user_id'],$params['trade_type']);
+                $data['openid'] = $openid_re['data'];
             }
-            $data['openid'] = $openid_re['data'];
         }
         if($trade_type == 'MWEB'){
             $data['scene_info'] = [
                 'h5_info' => [
                     'type' => 'Wap',
-                    'wap_url' => $params['return_url'],
-                    'wap_name' => 'mysite',//$params['wap_name'],
+                    'wap_url' => $params['return_url']."?id=".$paymentInfo['payment_id'],
+                    'wap_name' => 'jshop',//$params['wap_name'],
                 ]
             ];
             $data['scene_info'] = json_encode($data['scene_info']);
@@ -93,7 +114,7 @@ class wechatpay implements Payment
         if($re['return_code'] == 'SUCCESS'){
             if($re['result_code'] == 'SUCCESS'){
                 $result['status'] = true;
-                $data = $this->wxapppay($re);
+                $data = $this->wxapppay($re, $params['trade_type']);
                 //支付单传到前台
                 $data['payment_id'] = $paymentInfo['payment_id'];
                 $result['data'] = $data;
@@ -109,20 +130,27 @@ class wechatpay implements Payment
     }
 
     //根据统一下单接口的数据拼装调起支付所需要的参数,为什么要传第二个参数$source_data,这是原始参数，为了h5支付拼接回调地址
-    private function wxapppay($data){
+    private function wxapppay($data,$trade_type){
         $app_data = [];
 
         switch ($data['trade_type'])
         {
             case 'JSAPI':                   //微信小程序组建数据
+                //服务商模式下的小程序支付，appid取商户实际的appid
+                if($this->config['type'] == 1 && $trade_type == 'JSAPI'){
+                    $appid = getSetting('wx_appid');
+                }else{
+                    $appid = $data['appid'];
+                }
+
                 $time = time();
                 $app_data['timeStamp'] = "$time";
                 $app_data['nonceStr'] = $data['nonce_str'];
                 $app_data['package'] = 'prepay_id='.$data['prepay_id'];
                 $app_data['signType'] = 'MD5';
-                $app_data['appid'] = $data['appid'];
+                $app_data['appid'] = $appid;
                 $app_data['paySign'] = md5(
-                    'appId='.$data['appid'].
+                    'appId='.$app_data['appid'].
                     '&nonceStr='.$app_data['nonceStr'].
                     '&package='.$app_data['package'].
                     '&signType='.$app_data['signType'].
@@ -214,16 +242,27 @@ class wechatpay implements Payment
         if(!isset($params['trade_type'])){
             $params['trade_type'] = "JSAPI";
         }
+
+
+        $data['mch_id'] = $this->config['mch_id'];//商户号
+        if($this->config['type'] == 1){
+            $data['appid'] = $this->config['appid'];
+            $data['sub_mch_id'] = $this->config['sub_mch_id'];//商户号
+        }
+
         //取appid
         $appid_re = $this->getAppid($params['trade_type']);
         if(!$appid_re['status']){
             return $appid_re;
         }
+        if($this->config['type'] == 1){
+            $data['sub_appid'] = $appid_re['data'];
+        }else{
+            $data['appid'] = $appid_re['data']; 
+        }
 
 
 
-        $data['appid'] = $appid_re['data'];
-        $data['mch_id'] = $this->config['mch_id'];//商户号
         $data['nonce_str'] = self::getNonceStr();
         $data['out_trade_no'] = $paymentInfo['payment_id'];      //平台支付单号
         $data['out_refund_no'] = $refundInfo['refund_id'];            //退款单号
@@ -347,7 +386,7 @@ class wechatpay implements Payment
         }
 
 
-        $userWxInfo = $userWxModel->where(['type'=>$type,'user_id'=>$user_id])->find();
+        $userWxInfo = $userWxModel->where(['type'=>$type,'user_id'=>$user_id])->order('id desc')->find();
         if(!$userWxInfo){
             return error_code(10062);
         }

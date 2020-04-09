@@ -33,12 +33,12 @@ class Hooks extends Common
             return false;
         }
         $methods = get_class_methods($addons_class);
-        $hooks   = $this->field('name')->select();
+        $hooks = $this->field('name')->select();
         if (!$hooks->isEmpty()) {
-            $hooks  = $hooks->toArray();
-            $hooks  = array_column($hooks, 'name');
+            $hooks = $hooks->toArray();
+            $hooks = array_column($hooks, 'name');
             $common = array_intersect($hooks, $methods);
-            if (!empty($common)) {
+            if ($common) {
                 foreach ($common as $hook) {
                     $flag = $this->updateAddons($hook, array($addons_name));
                     if (false === $flag) {
@@ -46,8 +46,6 @@ class Hooks extends Common
                         return false;
                     }
                 }
-            } else {
-                return false;
             }
             return true;
         } else {
@@ -73,7 +71,7 @@ class Hooks extends Common
             $addons = $addons_name;
         }
         $addons = array_filter($addons);
-        $flag   = $this->where(['name' => $hook_name])
+        $flag = $this->where(['name' => $hook_name])
             ->setField('addons', implode(',', $addons));
 
         if (false === $flag) {
@@ -96,9 +94,9 @@ class Hooks extends Common
             return false;
         }
         $methods = get_class_methods($addons_class);
-        $hooks   = $this->field('name')->select()->toArray();
-        $hooks   = array_column($hooks, 'name');
-        $common  = array_intersect($hooks, $methods);
+        $hooks = $this->field('name')->select()->toArray();
+        $hooks = array_column($hooks, 'name');
+        $common = array_intersect($hooks, $methods);
 
         if ($common) {
             foreach ($common as $hook) {
@@ -117,15 +115,13 @@ class Hooks extends Common
      */
     public function removeAddons($hook_name, $addons_name)
     {
-        $o_addons = $this->where(['name' => $hook_name])->field('addons')->select()->toArray();
-        $o_addons = array_column($o_addons, 'addons');
-
+        $o_addons = $this->where(['name' => $hook_name])->field('addons')->find()->toArray();
+        $o_addons = explode(',', $o_addons['addons']);
         if ($o_addons) {
             $addons = array_diff($o_addons, $addons_name);
         } else {
             return true;
         }
-
         $flag = $this->where(['name' => $hook_name])
             ->setField('addons', implode(',', $addons));
         if (false === $flag) {
@@ -148,10 +144,9 @@ class Hooks extends Common
         $result = [
             'status' => true,
             'msg' => '保存成功',
-            'data'=> []
+            'data' => []
         ];
-        if (!$this->allowField(true)->save($data))
-        {
+        if (!$this->allowField(true)->save($data)) {
             $result['status'] = false;
             $result['msg'] = '保存失败';
         }
@@ -171,8 +166,7 @@ class Hooks extends Common
             'msg' => '保存成功',
             'data' => []
         ];
-        if (!$this->allowField(true)->save($data,['id'=>$data['id']]))
-        {
+        if (!$this->allowField(true)->save($data, ['id' => $data['id']])) {
             $result['status'] = false;
             $result['msg'] = '保存失败';
         }
@@ -180,4 +174,22 @@ class Hooks extends Common
     }
 
 
+    /**
+     * 根据输入的查询条件，返回所需要的where
+     * @param $post
+     * @return mixed
+     * @author sin
+     */
+    protected function tableWhere($post)
+    {
+        $where = [];
+        if (isset($post['name']) && $post['name'] != '') {
+            $where[] = ['name|description', 'like', '%'.$post['name'].'%'];
+        }
+
+        $result['where'] = $where;
+        $result['field'] = "*";
+        $result['order'] = [];
+        return $result;
+    }
 }

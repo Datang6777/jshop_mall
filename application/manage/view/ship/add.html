@@ -124,7 +124,7 @@
         <div class="layui-form-item">
             <label class="layui-form-label">商品满多少：</label>
             <div class="layui-input-inline seller-inline-2">
-                <input type="text" name="goodsmoney" placeholder="请输入顺序" value="0" autocomplete="off" class="layui-input">
+                <input type="text" name="goodsmoney" placeholder="请输入金额" value="0" autocomplete="off" class="layui-input">
             </div>
             <div class="layui-form-mid layui-word-aux">免运费（此项大于0时参与计算）</div>
 
@@ -260,11 +260,10 @@
             var tr = tdObj.parent().parent();
             var id = tr.attr("data-id");
             var value = tdObj.parent().find('input').val();
-            console.log(value);
             var DTree = '';
             layer.open({
                 type: 1,
-                area: ['700px', '450px'],
+                area: setpage(700,450),
                 data: value,
                 title: '选择地区',
                 closeBtn: 0,

@@ -63,22 +63,35 @@ class UserToken extends Common
         return $result;
     }
 
+
     /**
      * 根据token来获取用户的id
-     * @param $token                token的值
-     * @param int $status           用户状态，0是所有状态，1是取正常的用户状态
-     * @return array
+     * @param $token //token的值
+     * @param int $status //用户状态，0是所有状态，1是取正常的用户状态
+     * @return array|mixed
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
-    public function checkToken($token,$status = 1){
-        $result = array(
+    public function checkToken($token, $status = 1)
+    {
+        $result = [
             'status' => false,
             'data' => '',
             'msg' => ''
-        );
+        ];
+        if(!$token)
+        {
+            return error_code(14006);
+        }
+
         $where[] = ['token', 'eq', $token];
-        $where[] = ['ctime', 'gt', time()-60*60*24*180];     //有效期180天
-        $tokenInfo = $this->where($where)->find();
+        $tokenInfo = $this->where($where)->cache(true)->find();
         if($tokenInfo){
+            //密码有效期半年
+            if($tokenInfo['ctime'] < time() - 60*60*24*180){
+                return error_code(11026);
+            }
             $userModel = new User();
             $where1[] = ['id','eq', $tokenInfo['user_id']];
             $userInfo = $userModel->where($where1)->find();

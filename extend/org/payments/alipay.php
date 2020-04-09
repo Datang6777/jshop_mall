@@ -24,14 +24,14 @@ class alipay implements Payment
         if(isset($paymentInfo['params']) && $paymentInfo['params'] != ""){
             $params = json_decode($paymentInfo['params'],true);
         }else{
-            $params['trade_type'] = "WAP";
+            $params = [];
         }
         if(!isset($params['trade_type'])){
             $params['trade_type'] = "WAP";
         }
         //if($params['trade_type'] == 'MWEB'){$params['trade_type'] = "WAP";}        //兼容h5端，其实这一行是不需要的
 
-        if($params['trade_type'] != "PC" && $params['trade_type'] != "WAP" && $params['trade_type'] != "APP" && $params['trade_type'] != "JSAPI"){
+        if($params['trade_type'] != "PC" && $params['trade_type'] != "WAP" && $params['trade_type'] != "APP" && $params['trade_type'] != "JSAPI" && $params['trade_type'] != 'TT'){
             $result['msg'] = "不支持的支付模式";
             return $result;
         }
@@ -44,6 +44,9 @@ class alipay implements Payment
         }elseif($params['trade_type'] == "JSAPI"){//支付宝小程序支付，调用统一下单接口
             $method = "alipay.trade.create";
             $product_code = "";
+        }elseif($params['trade_type'] == "TT"){ //头条小程序的收银台模式
+            $method = "alipay.trade.app.pay";
+            $product_code = "QUICK_MSECURITY_PAY";
         }else{
             $method = "alipay.trade.page.pay";
             $product_code = "FAST_INSTANT_TRADE_PAY";
@@ -66,11 +69,8 @@ class alipay implements Payment
 
         if($params['trade_type'] == "PC" || $params['trade_type'] == "WAP"){
             $return_url = "";
-            if(isset($paymentInfo['params']) && $paymentInfo['params'] != ""){
-                $params = json_decode($paymentInfo['params'],true);
-                if(isset($params['return_url'])){
-                    $return_url = $params['return_url'];
-                }
+            if(isset($params['return_url'])){
+                $return_url = $params['return_url']."?id=".$paymentInfo['payment_id'];
             }
             $data["return_url"] = $return_url;
         }
@@ -79,7 +79,7 @@ class alipay implements Payment
 
 
         //业务参数
-        $ydata["subject"] = 'jshopgoods';          //商品名称,此处用商户名称代替
+        $ydata["subject"] = $paymentInfo['pay_title'];
         $ydata["out_trade_no"] = $paymentInfo['payment_id'];     //平台订单号
         $ydata["total_amount"] = $paymentInfo['money'];          //总金额，精确到小数点两位
         if($product_code != ""){
@@ -118,15 +118,48 @@ class alipay implements Payment
             $re['data']['payment_id'] = $paymentInfo['payment_id'];
             return $re;
             //组装数据。
+        }elseif($params['trade_type'] == "TT"){
+            $data = $preSignStr . "&sign=" . urlencode($sign);
         }else{
             $data['sign'] = $sign;      //wap和pc传所有值，在前端模拟表单提交吧
         }
 
+        $ttOrderInfo = [];
+        if($params['trade_type'] == "TT"){
+            //头条小程序再签名
+            $ttConfig = getAddonsConfig('MPToutiao');
+            $ttOrderInfo = [
+                'merchant_id' => $ttConfig['mp_toutiao_paymid'],
+                'app_id' => $ttConfig['mp_toutiao_payappid'],
+                'sign_type' => 'MD5',
+                'timestamp' => time(),
+                'version' => '2.0',
+                'trade_type' => 'H5',
+                'product_code' => 'pay',
+                'payment_type' => 'direct',
+                'out_order_no' => $paymentInfo['payment_id'],
+                'uid' => $paymentInfo['user_id'],
+                'total_amount' => ceil($paymentInfo['money'] * 100),
+                'currency' => 'CNY',
+                'subject' => $paymentInfo['pay_title'],
+                'body' => $paymentInfo['pay_title'],
+                'trade_time' => time(),
+                'valid_time' => 3600,
+                'notify_url' => 'https://www.jihainet.com/',
+                'alipay_url' => $data,
+                'wx_url' => '',
+            ];
+
+            $ttOrderInfopreSignStr = $this->getSignContent($ttOrderInfo);
+            $ttSign = md5($ttOrderInfopreSignStr.$ttConfig['mp_toutiao_paysecret']);
+            $ttOrderInfo['sign'] = $ttSign;
+        }
 
         $result['data'] = [
             'payment_id' => $paymentInfo['payment_id'],
             'url' => $url,
-            'data' => $data
+            'data' => $data,
+            'tt_order_info' => $ttOrderInfo?$ttOrderInfo:[]
         ];
         $result['status'] = true;
         return $result;
@@ -176,8 +209,60 @@ class alipay implements Payment
         $result = [
             'status' => false,
             'data' => [],
-            'msg' => ''
+            'msg' => '出错了'
         ];
+        //取appid,如果是支付宝小程序的话，单独取appid
+        if(isset($paymentInfo['params']) && $paymentInfo['params'] != ""){
+            $params = json_decode($paymentInfo['params'],true);
+            if(isset($params['trade_type']) && $params['trade_type'] == "JSAPI"){
+                $app_id = getAddonsConfigVal("MPAlipay","mp_alipay_appid");
+            }else{
+                $app_id = $this->config['appid'];
+            }
+        }else{
+            $app_id = $this->config['appid'];
+        }
+
+        $url = 'https://openapi.alipay.com/gateway.do';
+
+
+
+        $url = "https://openapi.alipay.com/gateway.do";
+        $data = [
+            'app_id' => $app_id,
+            'method' => "alipay.trade.refund",
+            'format' => "JSON",
+            'charset' => "utf-8",
+            'sign_type' => "RSA2",
+            'timestamp' => date('Y-m-d H:i:s'),
+            'version' => "1.0",
+            'biz_content' => [
+                'out_trade_no' => $paymentInfo['payment_id'],
+                'refund_amount' => $refundInfo['money']
+            ]
+        ];
+
+        $data["biz_content"] = json_encode($data["biz_content"],JSON_UNESCAPED_UNICODE);
+
+        //待签名字符串
+        $preSignStr = $this->getSignContent($data);
+        $sign = $this->sign($preSignStr,$data['sign_type']);
+        $data['sign'] = $sign;
+
+        $curl = new Curl();
+        $re = $curl->post($url,$data);
+        // 判断是否退款成功
+        $re = json_decode($re,true);
+
+        if(isset($re['alipay_trade_refund_response']['code']) && $re['alipay_trade_refund_response']['code'] == '10000'){
+            $result['msg'] = $re['alipay_trade_refund_response']['msg'];
+
+            if($re['alipay_trade_refund_response']['msg'] == "Success" && $re['alipay_trade_refund_response']['fund_change'] == 'Y'){
+                $result['status'] = true;
+            }
+        }
+        return $result;
+
     }
 
     //支付宝统一下单接口

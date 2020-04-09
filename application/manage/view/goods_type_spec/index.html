@@ -5,26 +5,24 @@
 		</div>
 	</div>
 </form>
-
 <div class="table-body">
 	<table id="typeTable" lay-filter="test"></table>
 </div>
-
 <script>
     var table;
     layui.use(['form', 'layedit', 'laydate','table'], function(){
         table = layui.table.render({
             elem: '#typeTable',
-            height: 'full-220',
+            height: 'full-99',
             cellMinWidth: '80',
             page: 'true',
             limit:'20',
             url: "{:url('GoodsTypeSpec/index')}?_ajax=1",
             id: 'typeTable',
             cols: [[
-                {type:'numbers'},
-                {field: 'name', width: 150, title: '名称'},
-                {field: 'spec_value', width: 240, title: '属性值',templet:function(data){
+				{field:'id', width:90, title:'ID', align: 'center'},
+                {field: 'name', width: 150, title: '名称', align: 'center'},
+                {field: 'spec_value', minWidth: 240, title: '属性值',templet:function(data){
                     var html="";
                     if(data.spec_value.length>0){
                         $.each(data.spec_value,function(i,j){
@@ -35,13 +33,13 @@
                     }else{
                         return '无属性值';
                     }
-                }},
-                {field: 'sort', width: 100, title: '排序'},
+                }, align: 'center'},
+                {field: 'sort', width: 100, title: '排序', align: 'center'},
                 {field: 'operating', title: '操作', templet: function (data) {
                     var html = '<a  class="layui-btn layui-btn-xs edit-class" data-id="' + data.id + '">编辑</a>';
                     html += '<a class="layui-btn layui-btn-danger layui-btn-xs del-class" data-name="'+data.name+'" data-id="' + data.id + '">删除</a>';
                     return html;
-                }}
+                }, align: 'center', width: 140}
             ]],
         });
 
@@ -59,12 +57,16 @@
         $(document).on('click', '.add-class', function(){
             var id = $(this).attr('data-id');
             JsGet('{:url("GoodsTypeSpec/add")}',function (e) {
-                window_box = layer.open({
-                    type: 1,
-                    title: '添加属性',
-                    area: ['420px', '420px'], //宽高
-                    content: e
-                });
+				if(e.status){
+					window_box = layer.open({
+						type: 1,
+						title: '添加属性',
+						area: setpage(420,420), //宽高
+						content: e.data
+					});
+				}else{
+					layer.msg(e.msg);
+				}
             });
             return false;
         });
@@ -72,24 +74,20 @@
         //编辑属性
         $(document).on('click', '.edit-class', function(){
             var id = $(this).attr('data-id');
-            $.ajax({
-                url: '{:url("GoodsTypeSpec/edit")}',
-                type: 'get',
-                data: {
-                    'id': id
-                },
-                success: function(e){
-                    window_box = layer.open({
-                        type: 1,
-                        title: '编辑属性',
-                        area: ['420px', '550px'], //宽高
-                        content: e
-                    });
-                }
-            });
+            JsGet('{:url("GoodsTypeSpec/edit")}?id='+id, function(e){
+				if(e.status){
+					window_box = layer.open({
+						type: 1,
+						title: '编辑属性',
+						area: setpage(440,550), //宽高
+						content: e.data
+					});
+				}else{
+					layer.msg(e.msg);
+				}
+			});
             return false;
         });
-
 
         //删除分类
         $(document).on('click', '.del-class', function(){
@@ -104,20 +102,12 @@
 
         //删除操作
         function delClass(id){
-            $.ajax({
-                url: '{:url("GoodsTypeSpec/del")}',
-                type: 'post',
-                data: {
-                    'id': id
-                },
-                success: function(e){
-                    layer.msg(e.msg, {time: 1300}, function(){
-                        table.reload('typeTable');
-                    });
-                }
-            });
+        	JsPost('{:url("GoodsTypeSpec/del")}', {'id': id}, function(e){
+				layer.msg(e.msg, {time: 1300}, function(){
+					table.reload('typeTable');
+				});
+			});
         }
-
     });
 
     function saveSpec(data){
@@ -125,22 +115,16 @@
             layer.msg('请先完善数据', {time: 1300});
             return false;
         }
-        $.ajax({
-            url: '{:url("GoodsTypeSpec/add")}',
-            type: 'post',
-            data: data,
-            dataType: 'json',
-            success: function(e){
-                if(e.status === true){
-                    layer.close(window_box);
-                    layer.msg(e.msg, {time: 1300}, function(){
-                        table.reload('typeTable');
-                    });
-                }else{
-                    layer.msg(e.msg, {time: 1300});
-                }
-            }
-        })
+        JsPost('{:url("GoodsTypeSpec/add")}', data, function(e){
+			if(e.status === true){
+				layer.close(window_box);
+				layer.msg(e.msg, {time: 1300}, function(){
+					table.reload('typeTable');
+				});
+			}else{
+				layer.msg(e.msg, {time: 1300});
+			}
+		});
     }
 
     function editSpec(data){
@@ -148,21 +132,15 @@
             layer.msg('请先完善数据', {time: 1300});
             return false;
         }
-        $.ajax({
-            url: '{:url("GoodsTypeSpec/edit")}',
-            type: 'post',
-            data: data,
-            dataType: 'json',
-            success: function(e){
-                if(e.status === true){
-                    layer.close(window_box);
-                    layer.msg(e.msg, {time: 1300}, function(){
-                        table.reload('typeTable');
-                    });
-                }else{
-                    layer.msg(e.msg, {time: 1300});
-                }
-            }
-        })
+        JsPost('{:url("GoodsTypeSpec/edit")}', data, function(e){
+			if(e.status === true){
+				layer.close(window_box);
+				layer.msg(e.msg, {time: 1300}, function(){
+					table.reload('typeTable');
+				});
+			}else{
+				layer.msg(e.msg, {time: 1300});
+			}
+		});
     }
 </script>
