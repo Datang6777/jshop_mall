@@ -16,7 +16,7 @@
   "dependencies": {
     "generate-asset-webpack-plugin": "^0.3.0",
     "http-proxy-middleware": "^0.18.0",
-    "jquery": "^2.2.1",
+    "jquery": "^3.5.0",
     "moment": "^2.22.1",
     "vue": "^2.5.2",
     "vue-aliplayer": "0.0.7",
